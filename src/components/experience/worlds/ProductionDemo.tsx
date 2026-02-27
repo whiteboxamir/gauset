@@ -182,9 +182,9 @@ export function ProductionDemo({ scrollRef }: { scrollRef: React.MutableRefObjec
                 rotation={[-Math.PI / 2.3, 0, 0]}
             >
                 <meshStandardMaterial
-                    color="#3A3020"
-                    roughness={0.9}
-                    metalness={0.05}
+                    color="#3D3525"
+                    roughness={0.85}
+                    metalness={0.08}
                     transparent
                     opacity={0}
                     side={THREE.DoubleSide}
@@ -253,6 +253,52 @@ export function ProductionDemo({ scrollRef }: { scrollRef: React.MutableRefObjec
                 <sphereGeometry args={[1, 3, 3]} />
                 <meshBasicMaterial color="#2A8F6A" transparent opacity={0.02} depthWrite={false} />
             </instancedMesh>
+
+            {/* Camera dolly rig — two track rails + camera box */}
+            <group>
+                {/* Left rail */}
+                <mesh position={[-8, -4.8, -30]} rotation={[0, 0, Math.PI / 2]}>
+                    <cylinderGeometry args={[0.03, 0.03, 15, 6]} />
+                    <meshStandardMaterial color="#2A2A2A" metalness={0.9} roughness={0.2} transparent opacity={0} />
+                </mesh>
+                {/* Right rail */}
+                <mesh position={[-7, -4.8, -30]} rotation={[0, 0, Math.PI / 2]}>
+                    <cylinderGeometry args={[0.03, 0.03, 15, 6]} />
+                    <meshStandardMaterial color="#2A2A2A" metalness={0.9} roughness={0.2} transparent opacity={0} />
+                </mesh>
+                {/* Camera body on dolly */}
+                <mesh position={[-7.5, -4.2, -28]}>
+                    <boxGeometry args={[0.8, 0.5, 0.6]} />
+                    <meshStandardMaterial color="#1A1A1A" metalness={0.7} roughness={0.3} transparent opacity={0} />
+                </mesh>
+                {/* Lens */}
+                <mesh position={[-7.5, -4.2, -27.6]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.12, 0.15, 0.4, 8]} />
+                    <meshStandardMaterial color="#111111" metalness={0.8} roughness={0.15} transparent opacity={0} />
+                </mesh>
+            </group>
+
+            {/* Crew silhouettes */}
+            <group>
+                {[{ x: -3, z: -25 }, { x: 5, z: -30 }, { x: -9, z: -35 }].map((pos, i) => (
+                    <group key={i} position={[pos.x, -4, pos.z]}>
+                        <mesh position={[0, 1.2, 0]}>
+                            <capsuleGeometry args={[0.25, 1.0, 4, 8]} />
+                            <meshStandardMaterial color="#1A1A1A" emissive="#2A8F6A" emissiveIntensity={0.1} transparent opacity={0} />
+                        </mesh>
+                        <mesh position={[0, 2.1, 0]}>
+                            <sphereGeometry args={[0.2, 6, 6]} />
+                            <meshStandardMaterial color="#1A1A1A" emissive="#2A8F6A" emissiveIntensity={0.1} transparent opacity={0} />
+                        </mesh>
+                    </group>
+                ))}
+            </group>
+
+            {/* Monitor / playback screen */}
+            <mesh position={[10, -2, -32]} rotation={[0, -0.4, 0]}>
+                <planeGeometry args={[2.5, 1.5]} />
+                <meshStandardMaterial color="#0A0A0A" emissive="#1A8F8F" emissiveIntensity={0.3} transparent opacity={0} />
+            </mesh>
         </group>
     );
 }

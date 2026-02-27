@@ -102,7 +102,7 @@ export function InsightWorld({ scrollRef }: { scrollRef: React.MutableRefObject<
         // Warm glow sphere
         if (glowRef.current) {
             const mat = glowRef.current.material as THREE.MeshBasicMaterial;
-            mat.opacity += (visibility * 0.06 - mat.opacity) * lerpRate;
+            mat.opacity += (visibility * 0.1 - mat.opacity) * lerpRate;
         }
 
         // Lights
@@ -192,7 +192,7 @@ export function InsightWorld({ scrollRef }: { scrollRef: React.MutableRefObject<
                 <meshStandardMaterial
                     color="#E8B84A"
                     emissive="#D4A04A"
-                    emissiveIntensity={0.4}
+                    emissiveIntensity={0.6}
                     transparent
                     opacity={0}
                     roughness={0.8}

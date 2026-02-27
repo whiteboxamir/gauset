@@ -52,6 +52,7 @@ const DARK_STUDIO = new THREE.Color('#08080a');
 const _color = new THREE.Color();
 const _vec3 = new THREE.Vector3();
 const _lookSmooth = new THREE.Vector3();
+const _lookTarget = new THREE.Vector3();
 
 // Ken Perlin's smootherstep — C2-continuous, no acceleration discontinuities
 function smootherstep(edge0: number, edge1: number, x: number): number {
@@ -298,7 +299,7 @@ function DustToArchitecture({ scrollRef }: { scrollRef: React.MutableRefObject<n
                 const phase = dustData.phases[i];
                 dummy.position.set(
                     dustData.positions[i3] + Math.sin(time * dustData.driftSpeeds[i3] + phase) * 1.5 * driftScale,
-                    dustData.positions[i3 + 1] + Math.cos(time * dustData.driftSpeeds[i3 + 1] + phase) * 0.8 * driftScale,
+                    dustData.positions[i3 + 1] + Math.cos(time * dustData.driftSpeeds[i3 + 1] + phase) * 0.8 * driftScale + time * 0.015,
                     dustData.positions[i3 + 2]
                 );
                 dummy.scale.setScalar(dustData.sizes[i]);
@@ -340,6 +341,13 @@ function DustToArchitecture({ scrollRef }: { scrollRef: React.MutableRefObject<n
                 dummy.position.x += Math.sin(time * 0.5 + shard.wobblePhase) * shard.wobbleAmp * wobbleDecay;
                 dummy.position.y += Math.cos(time * 0.4 + shard.wobblePhase * 1.3) * shard.wobbleAmp * 0.6 * wobbleDecay;
 
+                // Glitch displacement during fracture — periodic sharp offsets
+                const glitchIntensity = shardVisibility * (1 - assemblyProgress);
+                if (glitchIntensity > 0.1 && Math.sin(time * 8 + i * 3.7) > 0.92) {
+                    dummy.position.x += (Math.random() - 0.5) * 1.5 * glitchIntensity;
+                    dummy.position.y += (Math.random() - 0.5) * 0.8 * glitchIntensity;
+                }
+
                 // Rotation: tumble → locked panel orientation
                 dummy.rotation.set(
                     THREE.MathUtils.lerp(time * shard.rotSpeed.x, shard.prodRot.x, assemblyProgress),
@@ -368,11 +376,11 @@ function DustToArchitecture({ scrollRef }: { scrollRef: React.MutableRefObject<n
         <group>
             <instancedMesh ref={dustRef} args={[undefined, undefined, DUST_COUNT]} frustumCulled={false}>
                 <sphereGeometry args={[1, 4, 4]} />
-                <meshStandardMaterial color="#D4A04A" emissive="#D4A04A" emissiveIntensity={0.8} transparent opacity={0.55} roughness={1} />
+                <meshStandardMaterial color="#D4A04A" emissive="#D4A04A" emissiveIntensity={1.2} transparent opacity={0.55} roughness={1} />
             </instancedMesh>
             <instancedMesh ref={shardRef} args={[undefined, undefined, SHARD_COUNT]} frustumCulled={false}>
                 <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial color="#1A1A2E" metalness={0.35} roughness={0.15} transparent opacity={0} envMapIntensity={0.4} />
+                <meshStandardMaterial color="#1A1A2E" emissive="#2A3A5A" emissiveIntensity={0.15} metalness={0.6} roughness={0.1} transparent opacity={0} envMapIntensity={0.8} />
             </instancedMesh>
             <instancedMesh ref={shardWireRef} args={[undefined, undefined, SHARD_COUNT]} frustumCulled={false}>
                 <boxGeometry args={[1.02, 1.02, 1.02]} />
@@ -521,12 +529,17 @@ function Figures({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
         ];
     }, []);
 
-    useFrame(() => {
+    useFrame(({ clock }) => {
         if (!groupRef.current) return;
         const t = scrollRef.current;
+        const time = clock.elapsedTime;
         const visibility = THREE.MathUtils.smoothstep(t, 0.48, 0.58) * (1 - THREE.MathUtils.smoothstep(t, 0.82, 0.92));
 
-        groupRef.current.children.forEach((child) => {
+        groupRef.current.children.forEach((child, i) => {
+            // Subtle sway animation per figure
+            child.rotation.z = Math.sin(time * 0.3 + i * 1.7) * 0.03 * visibility;
+            child.rotation.x = Math.cos(time * 0.2 + i * 2.3) * 0.015 * visibility;
+
             child.children.forEach((mesh) => {
                 const m = mesh as THREE.Mesh;
                 const mat = m.material as THREE.MeshStandardMaterial;
@@ -627,6 +640,15 @@ function StageBounds({ scrollRef }: { scrollRef: React.MutableRefObject<number> 
                     <lineBasicMaterial color="#E8DDD0" transparent opacity={0} />
                 </line>
             ))}
+            {/* Corner accent lights — small emissive spheres at bottom corners */}
+            {[
+                [-13, -4, -8], [13, -4, -8], [-13, -4, -43], [13, -4, -43]
+            ].map((pos, i) => (
+                <mesh key={`accent-${i}`} position={pos as [number, number, number]}>
+                    <sphereGeometry args={[0.12, 6, 6]} />
+                    <meshBasicMaterial color="#D4A04A" transparent opacity={0} depthWrite={false} />
+                </mesh>
+            ))}
         </group>
     );
 }
@@ -706,49 +728,83 @@ function BokehOrbs({ scrollRef }: { scrollRef: React.MutableRefObject<number> })
 }
 
 // ═══════════════════════════════════════════════
-//  LIGHTING: Three-Phase Adaptive
+//  LIGHTING: Six-Phase Cinematic Adaptive
 // ═══════════════════════════════════════════════
 function AdaptiveLighting({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
     const keyLightRef = useRef<THREE.DirectionalLight>(null);
     const coldLight1Ref = useRef<THREE.PointLight>(null);
     const coldLight2Ref = useRef<THREE.PointLight>(null);
+    const insightWarm1Ref = useRef<THREE.PointLight>(null);
+    const insightWarm2Ref = useRef<THREE.PointLight>(null);
     const studioKeyRef = useRef<THREE.SpotLight>(null);
     const studioFillRef = useRef<THREE.PointLight>(null);
     const studioRimRef = useRef<THREE.PointLight>(null);
+    const closingLightRef = useRef<THREE.PointLight>(null);
+    const rigGroupRef = useRef<THREE.Group>(null);
 
-    useFrame((_state, delta) => {
+    useFrame(({ clock }, delta) => {
         const t = scrollRef.current;
-        const lerpRate = 1 - Math.exp(-4 * delta); // frame-rate-independent damping
+        const time = clock.elapsedTime;
+        const lerpRate = 1 - Math.exp(-4 * delta);
 
-        // Phase 1: Amber key light — smootherstep fade into fracture
+        // Phase 1: Amber key light — cinematic darkness
         if (keyLightRef.current) {
-            const amberTarget = (1 - smootherstep(0.0, 0.35, t)) * 0.35;
+            const amberTarget = (1 - smootherstep(0.0, 0.35, t)) * 0.45;
             keyLightRef.current.intensity += (amberTarget - keyLightRef.current.intensity) * lerpRate;
         }
 
-        // Phase 2: Cold lights — smootherstep in and out for fracture
-        const coldTarget = smootherstep(0.12, 0.25, t) * (1 - smootherstep(0.30, 0.45, t)) * 0.5;
+        // Phase 2: Cold lights — fracture phase with subtle flicker
+        const coldBase = smootherstep(0.12, 0.25, t) * (1 - smootherstep(0.30, 0.45, t)) * 0.6;
+        const flicker = 1 + Math.sin(time * 12) * 0.05 + Math.sin(time * 23) * 0.03;
+        const coldTarget = coldBase * flicker;
         if (coldLight1Ref.current) coldLight1Ref.current.intensity += (coldTarget - coldLight1Ref.current.intensity) * lerpRate;
         if (coldLight2Ref.current) coldLight2Ref.current.intensity += (coldTarget * 0.7 - coldLight2Ref.current.intensity) * lerpRate;
 
-        // Phase 3: Studio lights — solution/proof phases
+        // Phase 3: Insight — dawn golden warmth
+        const insightTarget = smootherstep(0.28, 0.38, t) * (1 - smootherstep(0.43, 0.52, t));
+        if (insightWarm1Ref.current) insightWarm1Ref.current.intensity += (insightTarget * 0.7 - insightWarm1Ref.current.intensity) * lerpRate;
+        if (insightWarm2Ref.current) insightWarm2Ref.current.intensity += (insightTarget * 0.4 - insightWarm2Ref.current.intensity) * lerpRate;
+
+        // Phase 4+5: Studio lights — production & proof
         const studioTarget = smootherstep(0.45, 0.55, t) * (1 - smootherstep(0.82, 0.95, t));
-        if (studioKeyRef.current) studioKeyRef.current.intensity += (studioTarget * 0.8 - studioKeyRef.current.intensity) * lerpRate;
-        if (studioFillRef.current) studioFillRef.current.intensity += (studioTarget * 0.25 - studioFillRef.current.intensity) * lerpRate;
-        if (studioRimRef.current) studioRimRef.current.intensity += (studioTarget * 0.15 - studioRimRef.current.intensity) * lerpRate;
+        if (studioKeyRef.current) studioKeyRef.current.intensity += (studioTarget * 1.2 - studioKeyRef.current.intensity) * lerpRate;
+        if (studioFillRef.current) studioFillRef.current.intensity += (studioTarget * 0.35 - studioFillRef.current.intensity) * lerpRate;
+        if (studioRimRef.current) studioRimRef.current.intensity += (studioTarget * 0.25 - studioRimRef.current.intensity) * lerpRate;
+
+        // Visible light rigs — fade with studio phase
+        if (rigGroupRef.current) {
+            rigGroupRef.current.children.forEach((child) => {
+                if ((child as THREE.Mesh).material) {
+                    const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+                    if (mat.opacity !== undefined) {
+                        mat.opacity += (studioTarget * 0.6 - mat.opacity) * lerpRate;
+                    }
+                }
+            });
+        }
+
+        // Phase 6: Closing — single warm light, breathing
+        if (closingLightRef.current) {
+            const closingTarget = smootherstep(0.85, 0.92, t) * 0.4 * (0.9 + Math.sin(time * 0.3) * 0.1);
+            closingLightRef.current.intensity += (closingTarget - closingLightRef.current.intensity) * lerpRate;
+        }
     });
 
     return (
         <>
-            {/* Void: warm amber key */}
-            <directionalLight ref={keyLightRef} position={[18, 12, 8]} intensity={0.35} color="#D4A04A" />
-            <ambientLight intensity={0.008} color="#0a0a1a" />
+            {/* Void: warm amber key — upper right, cinematic */}
+            <directionalLight ref={keyLightRef} position={[18, 12, 8]} intensity={0.45} color="#D4A04A" />
+            <ambientLight intensity={0.006} color="#08080F" />
 
-            {/* Fracture: cold scattered — wider spread for depth contrast */}
+            {/* Fracture: cold scattered — conflicting hues */}
             <pointLight ref={coldLight1Ref} position={[-12, 6, -15]} intensity={0} color="#B8C4E0" distance={35} />
             <pointLight ref={coldLight2Ref} position={[8, -5, -25]} intensity={0} color="#6B4C9A" distance={30} />
 
-            {/* Edge volumetrics — subtle color spill for depth (always-on, very low) */}
+            {/* Insight: dawn warm fills — low angle for golden hour feel */}
+            <pointLight ref={insightWarm1Ref} position={[20, 3, -18]} intensity={0} color="#E8B84A" distance={45} />
+            <pointLight ref={insightWarm2Ref} position={[-15, 1, -25]} intensity={0} color="#D4A04A" distance={35} />
+
+            {/* Edge volumetrics — subtle persistent depth spill */}
             <pointLight position={[-25, -2, -40]} intensity={0.04} color="#2A1A3A" distance={50} />
             <pointLight position={[22, 8, -55]} intensity={0.03} color="#1A2A3A" distance={45} />
 
@@ -765,41 +821,71 @@ function AdaptiveLighting({ scrollRef }: { scrollRef: React.MutableRefObject<num
             />
             <pointLight ref={studioFillRef} position={[-10, 3, -18]} intensity={0} color="#C4B5A0" distance={25} />
             <pointLight ref={studioRimRef} position={[12, 6, -30]} intensity={0} color="#D4A04A" distance={20} />
+
+            {/* Visible light rig geometry — C-stands & fresnels */}
+            <group ref={rigGroupRef}>
+                {/* Left C-stand */}
+                <mesh position={[-10, -1, -16]}>
+                    <cylinderGeometry args={[0.04, 0.06, 8, 6]} />
+                    <meshStandardMaterial color="#1A1A1A" metalness={0.8} roughness={0.3} transparent opacity={0} />
+                </mesh>
+                {/* Left fresnel head */}
+                <mesh position={[-10, 3, -16]} rotation={[0.3, 0.5, 0]}>
+                    <cylinderGeometry args={[0.15, 0.4, 0.6, 8]} />
+                    <meshStandardMaterial color="#222222" emissive="#C4B5A0" emissiveIntensity={0.3} metalness={0.7} roughness={0.2} transparent opacity={0} />
+                </mesh>
+                {/* Right C-stand */}
+                <mesh position={[12, -1, -28]}>
+                    <cylinderGeometry args={[0.04, 0.06, 8, 6]} />
+                    <meshStandardMaterial color="#1A1A1A" metalness={0.8} roughness={0.3} transparent opacity={0} />
+                </mesh>
+                {/* Right rim light head */}
+                <mesh position={[12, 3, -28]} rotation={[-0.2, -0.4, 0]}>
+                    <cylinderGeometry args={[0.15, 0.4, 0.6, 8]} />
+                    <meshStandardMaterial color="#222222" emissive="#D4A04A" emissiveIntensity={0.4} metalness={0.7} roughness={0.2} transparent opacity={0} />
+                </mesh>
+                {/* Overhead key stand */}
+                <mesh position={[0, 7, -20]}>
+                    <cylinderGeometry args={[0.05, 0.05, 3, 6]} />
+                    <meshStandardMaterial color="#1A1A1A" metalness={0.8} roughness={0.3} transparent opacity={0} />
+                </mesh>
+            </group>
+
+            {/* Closing: single warm presence */}
+            <pointLight ref={closingLightRef} position={[0, 2, -40]} intensity={0} color="#D4A04A" distance={40} decay={2} />
         </>
     );
 }
 
 // ═══════════════════════════════════════════════
-//  CAMERA: Six-Phase Path
+//  CAMERA: Cinematic Spline Dolly
 // ═══════════════════════════════════════════════
 function CameraController({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
     const startTime = useRef<number | null>(null);
     const loadComplete = useRef(false);
+    const prevT = useRef(0);
 
     const loadStart = useMemo(() => new THREE.Vector3(0, 0.5, 26), []);
     const loadEnd = useMemo(() => new THREE.Vector3(0, 0, 20), []);
 
-    // Six waypoints: Hook → Problem → Insight → Solution → Proof → CTA
-    const waypoints = useMemo(() => [
-        new THREE.Vector3(0, 0, 20),         // 0: Hook (Void)
-        new THREE.Vector3(4, -1, 6),         // 1: Problem (Fracture)
-        new THREE.Vector3(1, 2, -4),         // 2: Insight (Dawn convergence)
-        new THREE.Vector3(2, 4, -12),        // 3: Solution (Production)
-        new THREE.Vector3(0, 10, -30),       // 4: Proof (World reuse, high overview)
-        new THREE.Vector3(0, 1, -40),        // 5: CTA (Closing)
-    ], []);
+    // CatmullRom spline through all waypoints — smooth dolly path
+    const positionSpline = useMemo(() => new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 20),         // Hook (Void)
+        new THREE.Vector3(4, -1, 6),         // Problem (Fracture)
+        new THREE.Vector3(1, 2, -4),         // Insight (Dawn convergence)
+        new THREE.Vector3(2, 4, -12),        // Solution (Production)
+        new THREE.Vector3(0, 10, -30),       // Proof (World reuse, high overview)
+        new THREE.Vector3(0, 1, -40),        // CTA (Closing)
+    ], false, 'catmullrom', 0.3), []);
 
-    const lookTargets = useMemo(() => [
+    const lookSpline = useMemo(() => new THREE.CatmullRomCurve3([
         new THREE.Vector3(0, 0, 0),          // Hook: straight ahead
         new THREE.Vector3(-2, -2, -15),      // Problem: into the chaos
         new THREE.Vector3(0, 0, -20),        // Insight: into converging particles
         new THREE.Vector3(0, -2, -25),       // Solution: down into the stage
         new THREE.Vector3(0, -3, -42),       // Proof: terrain overview
         new THREE.Vector3(0, 0, -50),        // CTA: straight ahead, still
-    ], []);
-
-    // Scroll breakpoints for each segment
-    const breakpoints = useMemo(() => [0, 0.15, 0.30, 0.45, 0.65, 0.85], []);
+    ], false, 'catmullrom', 0.3), []);
 
     useFrame(({ clock, camera }, delta) => {
         if (startTime.current === null) {
@@ -810,15 +896,14 @@ function CameraController({ scrollRef }: { scrollRef: React.MutableRefObject<num
 
         const elapsed = clock.elapsedTime - startTime.current;
         const t = scrollRef.current;
-        // Frame-rate-independent exponential damping
-        const posLerp = 1 - Math.exp(-3.5 * delta);
-        const lookLerp = 1 - Math.exp(-4.0 * delta);
+        // Heavier damping for cinematic weight
+        const posLerp = 1 - Math.exp(-2.5 * delta);
+        const lookLerp = 1 - Math.exp(-3.0 * delta);
 
         // Phase 0: Load push-in (quintic ease-out)
         if (!loadComplete.current && t < 0.02) {
             const pushDuration = 5;
             const pushProgress = Math.min(elapsed / pushDuration, 1);
-            // Quintic ease-out: feels heavy then settles
             const p = 1 - pushProgress;
             const eased = 1 - p * p * p * p * p;
             _vec3.lerpVectors(loadStart, loadEnd, eased);
@@ -833,42 +918,30 @@ function CameraController({ scrollRef }: { scrollRef: React.MutableRefObject<num
         } else {
             loadComplete.current = true;
 
-            // Find current segment
-            let segIndex = 0;
-            for (let i = breakpoints.length - 1; i >= 0; i--) {
-                if (t >= breakpoints[i]) {
-                    segIndex = i;
-                    break;
-                }
-            }
-
-            const nextIndex = Math.min(segIndex + 1, waypoints.length - 1);
-            const segStart_bp = breakpoints[segIndex];
-            const segEnd_bp = segIndex < breakpoints.length - 1
-                ? breakpoints[segIndex + 1]
-                : 1.0;
-            const segT = segEnd_bp > segStart_bp
-                ? (t - segStart_bp) / (segEnd_bp - segStart_bp)
-                : 0;
-
-            // Smootherstep (C2-continuous quintic) — no acceleration discontinuities at segment boundaries
-            const eased = segT * segT * segT * (segT * (segT * 6 - 15) + 10);
-            _vec3.lerpVectors(waypoints[segIndex], waypoints[nextIndex], eased);
+            // Sample spline at scroll position — smooth continuous path
+            const splineT = Math.max(0, Math.min(1, t));
+            positionSpline.getPoint(splineT, _vec3);
 
             // Drift: organic breathing that decelerates toward closing
             const driftDecay = 1 - smootherstep(0.5, 0.95, t) * 0.95;
             _vec3.x += Math.sin(clock.elapsedTime * 0.06) * 0.08 * driftDecay;
             _vec3.y += Math.cos(clock.elapsedTime * 0.05) * 0.05 * driftDecay;
 
-            // Damped position follow — prevents instant jumps at segment boundaries
+            // Damped position follow — cinematic weight
             camera.position.lerp(_vec3, posLerp);
 
-            // Smooth lookAt target — damped to prevent snapping
-            const lookTarget = new THREE.Vector3();
-            lookTarget.lerpVectors(lookTargets[segIndex], lookTargets[nextIndex], eased);
-            _lookSmooth.lerp(lookTarget, lookLerp);
+            // Smooth lookAt from spline — no per-frame allocation
+            lookSpline.getPoint(splineT, _lookTarget);
+            _lookSmooth.lerp(_lookTarget, lookLerp);
             camera.lookAt(_lookSmooth);
+
+            // Subtle camera roll during movement — builds and decays
+            const scrollVelocity = Math.abs(t - prevT.current) / Math.max(delta, 0.001);
+            const rollAmount = Math.min(scrollVelocity * 0.015, 0.02) * Math.sign(t - prevT.current);
+            camera.rotation.z += (rollAmount - camera.rotation.z) * (1 - Math.exp(-2 * delta));
         }
+
+        prevT.current = t;
     });
 
     return null;

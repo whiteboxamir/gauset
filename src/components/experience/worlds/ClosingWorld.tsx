@@ -112,8 +112,8 @@ export function ClosingWorld({ scrollRef }: { scrollRef: React.MutableRefObject<
 
             {/* Expanding warm glow — the final presence settles outward */}
             <mesh position={[0, 0, -42]}>
-                <sphereGeometry args={[15, 16, 16]} />
-                <meshBasicMaterial color="#1A1410" transparent opacity={0} side={THREE.BackSide} depthWrite={false} />
+                <sphereGeometry args={[18, 16, 16]} />
+                <meshBasicMaterial color="#1A1410" transparent opacity={0.04} side={THREE.BackSide} depthWrite={false} />
             </mesh>
 
             {/* Deep void background — far, very faint */}
@@ -128,11 +128,28 @@ export function ClosingWorld({ scrollRef }: { scrollRef: React.MutableRefObject<
                 <meshBasicMaterial color="#D4A04A" transparent opacity={0} depthWrite={false} />
             </instancedMesh>
 
-            {/* Star-field — very distant, barely visible particles, sense of vast calm */}
-            <instancedMesh args={[undefined, undefined, 50]} frustumCulled={false}>
-                <sphereGeometry args={[1, 3, 3]} />
-                <meshBasicMaterial color="#E8DDD0" transparent opacity={0.008} depthWrite={false} />
-            </instancedMesh>
+            {/* Star-field — positioned distant particles for vast calm */}
+            {Array.from({ length: 50 }).map((_, i) => {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const r = 35 + Math.random() * 30;
+                return (
+                    <mesh key={i} position={[
+                        Math.sin(phi) * Math.cos(theta) * r,
+                        Math.sin(phi) * Math.sin(theta) * r * 0.4 - 5,
+                        -40 + Math.cos(phi) * r * 0.5
+                    ]}>
+                        <sphereGeometry args={[0.03 + Math.random() * 0.05, 3, 3]} />
+                        <meshBasicMaterial color="#E8DDD0" transparent opacity={0.015} depthWrite={false} />
+                    </mesh>
+                );
+            })}
+
+            {/* Subtle lens flare point */}
+            <mesh position={[3, 1, -38]}>
+                <sphereGeometry args={[0.08, 6, 6]} />
+                <meshBasicMaterial color="#D4A04A" transparent opacity={0.3} depthWrite={false} />
+            </mesh>
         </group>
     );
 }

@@ -3,21 +3,22 @@
 import { Suspense, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ScrollControls, Scroll, Preload } from '@react-three/drei';
-import { EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Noise, Vignette, Bloom } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
+import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CinematicScene } from './HeroScene';
+import { WorldRenderer } from './WorldRenderer';
 import { WaitlistForm } from '@/components/ui/WaitlistForm';
 
 /*
-  SIX-PHASE CONVERSION FUNNEL — HTML Overlay
-  
-  Phase 1 (0%–12%):   HOOK — "Build worlds. Not clips." + CTA
-  Phase 2 (15%–28%):  PROBLEM — AI video is broken
-  Phase 3 (30%–42%):  INSIGHT — Production needs persistence
-  Phase 4 (45%–60%):  SOLUTION — Gauset is the layer + CTA
-  Phase 5 (65%–80%):  PROOF — One world, infinite shots
-  Phase 6 (85%–100%): CTA — Join early access + CTA
+  SIX-PHASE CONVERSION FUNNEL — Cinematic Product Experience
+
+  Phase 1 (0%–15%):   HOOK — "Build worlds. Not clips." + CTA
+  Phase 2 (15%–30%):  PROBLEM — AI video is broken (FRACTURE world)
+  Phase 3 (30%–50%):  SOLUTION — Gauset is the production layer (PRODUCTION world)
+  Phase 4 (50%–70%):  PROOF — Same world, infinite shots (PERSISTENT SHOT world)
+  Phase 5 (70%–85%):  HORIZON — The future of production
+  Phase 6 (85%–100%): CTA — Early access, urgency
 */
 
 export function HeroPage() {
@@ -38,26 +39,29 @@ export function HeroPage() {
                     powerPreference: 'high-performance',
                     stencil: false,
                     depth: true,
+                    toneMapping: THREE.ACESFilmicToneMapping,
+                    toneMappingExposure: 0.85,
                 }}
                 dpr={[1, 1.5]}
                 style={{ background: '#000000' }}
             >
-                <color attach="background" args={['#000000']} />
+                <color attach="background" args={['#050510']} />
+                <fog attach="fog" args={['#050510', 30, 120]} />
 
                 <Suspense fallback={null}>
-                    <ScrollControls pages={8} damping={0.12}>
-                        <CinematicScene />
+                    <ScrollControls pages={7} damping={0.12}>
+                        <WorldRenderer />
 
                         <Scroll html style={{ width: '100%' }}>
                             <div className="w-screen pointer-events-none">
 
-                                {/* ═══ PHASE 1: HOOK — Immediate clarity + intrigue ═══ */}
+                                {/* ═══ PHASE 1: HOOK — Immediate clarity ═══ */}
                                 <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative">
                                     <nav className="fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-10 py-5 pointer-events-auto z-50">
                                         <div className="text-white/90 font-bold tracking-[0.15em] text-xs uppercase">Gauset</div>
                                         <a
                                             href="#waitlist"
-                                            className="text-white/50 text-xs tracking-wider border border-white/[0.08] rounded-full px-5 py-2.5 hover:text-white/80 hover:border-white/[0.15] transition-all duration-500"
+                                            className="text-white/50 text-xs tracking-wider border border-white/[0.08] rounded-full px-5 py-2.5 hover:text-white/90 hover:border-white/[0.2] hover:shadow-[0_0_15px_rgba(212,160,74,0.15)] transition-all duration-500"
                                         >
                                             Get Early Access
                                         </a>
@@ -97,8 +101,8 @@ export function HeroPage() {
                                     </AnimatePresence>
                                 </div>
 
-                                {/* ═══ TRANSITION: scroll into the problem ═══ */}
-                                <div className="h-[30vh]" />
+                                {/* ═══ TRANSITION ═══ */}
+                                <div className="h-[25vh]" />
 
                                 {/* ═══ PHASE 2: PROBLEM — AI video is broken ═══ */}
                                 <div className="h-screen flex items-center relative">
@@ -124,48 +128,23 @@ export function HeroPage() {
                                                     className="text-base md:text-lg text-neutral-500 tracking-tight leading-relaxed max-w-lg"
                                                     style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                                 >
-                                                    You can&apos;t cut a scene from isolated clips. You can&apos;t build continuity from randomness.
-                                                    Current AI video tools are built for demos — not for production.
+                                                    You can&apos;t cut a scene from isolated clips. You can&apos;t direct randomness.
+                                                    Current AI video tools are built for demos — not for filmmaking.
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION: from chaos to clarity ═══ */}
-                                <div className="h-[30vh]" />
+                                {/* ═══ TRANSITION ═══ */}
+                                <div className="h-[25vh]" />
 
-                                {/* ═══ PHASE 3: INSIGHT — Production needs a world ═══ */}
-                                <div className="h-screen flex items-center justify-center relative">
-                                    <div className="max-w-3xl px-6 text-center space-y-8">
-                                        <p
-                                            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium tracking-tighter text-white/80 leading-tight"
-                                            style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
-                                        >
-                                            Production needs a world,
-                                            <br />
-                                            not a prompt.
-                                        </p>
-                                        <p
-                                            className="text-base md:text-lg text-neutral-400 tracking-tight leading-relaxed max-w-xl mx-auto"
-                                            style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
-                                        >
-                                            The missing layer between generation and production is persistence.
-                                            A world that holds its state — so you can direct inside it, shoot from any angle,
-                                            and return to it tomorrow exactly as you left it.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* ═══ TRANSITION: insight to solution ═══ */}
-                                <div className="h-[30vh]" />
-
-                                {/* ═══ PHASE 4: SOLUTION — Gauset is that layer + mid-scroll CTA ═══ */}
+                                {/* ═══ PHASE 3: SOLUTION — Gauset is the layer ═══ */}
                                 <div className="h-screen flex items-center relative">
                                     <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                                         <div className="md:max-w-2xl space-y-8">
                                             <p
-                                                className="text-[10px] uppercase tracking-[0.35em] text-white/30 font-medium"
+                                                className="text-[10px] uppercase tracking-[0.35em] text-[#FFB347]/50 font-medium"
                                                 style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
                                             >
                                                 Introducing Gauset
@@ -174,9 +153,9 @@ export function HeroPage() {
                                                 className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tighter leading-[1.05] text-white/90"
                                                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
                                             >
-                                                The production layer
+                                                Persistent worlds
                                                 <br />
-                                                for AI worlds.
+                                                for production.
                                             </p>
                                             <div className="space-y-4">
                                                 <p
@@ -202,80 +181,145 @@ export function HeroPage() {
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION: solution to proof ═══ */}
-                                <div className="h-[30vh]" />
+                                {/* ═══ TRANSITION ═══ */}
+                                <div className="h-[25vh]" />
 
-                                {/* ═══ PHASE 5: PROOF — One world, infinite shots ═══ */}
+                                {/* ═══ PHASE 4: PROOF — One world, infinite shots ═══ */}
+                                <div className="h-[140vh] flex flex-col items-center relative">
+                                    <div className="sticky top-0 h-screen flex flex-col items-center justify-center">
+                                        <div className="max-w-3xl px-6 text-center space-y-6">
+                                            <p
+                                                className="text-[10px] uppercase tracking-[0.35em] text-[#FFB347]/40 font-medium"
+                                                style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                            >
+                                                Persistent World Demo
+                                            </p>
+                                            <p
+                                                className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter text-white/80 leading-tight"
+                                                style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
+                                            >
+                                                One world.
+                                                <br />
+                                                Infinite shots.
+                                            </p>
+                                            <p
+                                                className="text-sm md:text-base text-neutral-500 tracking-tight leading-relaxed max-w-md mx-auto"
+                                                style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
+                                            >
+                                                Same environment. Same lighting. Same geometry.
+                                                <br />
+                                                Only the camera changes.
+                                            </p>
+
+                                            {/* Shot type labels */}
+                                            <div className="flex gap-4 justify-center mt-8 flex-wrap">
+                                                {['Wide', 'Close-up', 'OTS', 'Tracking'].map((shot, i) => (
+                                                    <div
+                                                        key={shot}
+                                                        className="px-4 py-2 rounded-full border border-[#FFB347]/20 bg-[#FFB347]/5 text-[#FFB347]/70 text-xs tracking-[0.15em] uppercase font-medium"
+                                                        style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                                    >
+                                                        {shot}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ═══ TRANSITION ═══ */}
+                                <div className="h-[25vh]" />
+
+                                {/* ═══ PHASE 5: HORIZON — The future ═══ */}
                                 <div className="h-screen flex items-center justify-center relative">
-                                    <div className="max-w-3xl px-6 text-center space-y-6">
+                                    <div className="max-w-4xl px-6 text-center space-y-8">
                                         <p
-                                            className="text-[10px] uppercase tracking-[0.35em] text-white/25 font-medium"
-                                            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tighter text-white/85 leading-[1.05]"
+                                            style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
                                         >
-                                            Persistent World Demo
-                                        </p>
-                                        <p
-                                            className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter text-white/75 leading-tight"
-                                            style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
-                                        >
-                                            One world.
+                                            The future of film
                                             <br />
-                                            Infinite shots.
+                                            is already here.
                                         </p>
                                         <p
-                                            className="text-sm md:text-base text-neutral-500 tracking-tight leading-relaxed max-w-md mx-auto"
+                                            className="text-base md:text-xl text-neutral-400 tracking-tight leading-relaxed max-w-xl mx-auto"
                                             style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                         >
-                                            Multiple camera paths through one persistent environment.
-                                            Different angles, same continuity. Every frame belongs to the same world.
+                                            AI-generated worlds you can direct, shoot in, and return to.
+                                            The entire production pipeline — reimagined.
                                         </p>
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION: proof to closing ═══ */}
-                                <div className="h-[30vh]" />
+                                {/* ═══ TRANSITION ═══ */}
+                                <div className="h-[15vh]" />
 
-                                {/* ═══ PHASE 6: CTA — Join early access ═══ */}
+                                {/* ═══ PHASE 6: CTA — Early access, urgency ═══ */}
                                 <div id="waitlist" className="h-screen flex flex-col items-center justify-center relative">
                                     <p
-                                        className="text-5xl sm:text-6xl md:text-7xl font-medium tracking-[-0.04em] text-white/85 mb-4"
+                                        className="text-5xl sm:text-6xl md:text-7xl font-medium tracking-[-0.04em] text-white/90 mb-3"
                                         style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
                                     >
                                         Gauset
                                     </p>
                                     <p
-                                        className="text-base sm:text-lg tracking-[0.08em] text-white/40 font-light mb-4"
+                                        className="text-base sm:text-lg tracking-[0.08em] text-white/40 font-light mb-3"
                                         style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                     >
                                         Persistent worlds for production.
                                     </p>
-                                    <p
-                                        className="text-sm text-neutral-500 mb-10 tracking-tight"
-                                        style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
-                                    >
-                                        Join the early access.
-                                    </p>
+
+                                    {/* Urgency block */}
+                                    <div className="mb-8 mt-6 space-y-2 text-center">
+                                        <p
+                                            className="text-[11px] uppercase tracking-[0.25em] text-[#FFB347]/70 font-medium"
+                                            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                        >
+                                            Early access — limited rollout
+                                        </p>
+                                        <p
+                                            className="text-sm text-neutral-400 tracking-tight"
+                                            style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
+                                        >
+                                            Currently onboarding first productions.
+                                        </p>
+                                    </div>
+
                                     <div className="w-full max-w-sm pointer-events-auto mb-6">
                                         <WaitlistForm size="large" />
                                     </div>
+
                                     <p
-                                        className="text-[11px] tracking-[0.2em] text-white/20 font-light mt-8"
+                                        className="text-[11px] tracking-[0.2em] text-[#FFB347]/30 font-light mt-6"
                                         style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
                                     >
-                                        Early access is limited.
+                                        Limited to 50 teams in the initial rollout.
                                     </p>
+
+                                    {/* Footer */}
+                                    <footer className="absolute bottom-6 left-0 right-0 flex justify-center gap-8 text-xs text-neutral-600">
+                                        <span>© {new Date().getFullYear()} Gauset Inc.</span>
+                                        <a href="#" className="hover:text-neutral-400 transition-colors pointer-events-auto">Privacy</a>
+                                        <a href="#" className="hover:text-neutral-400 transition-colors pointer-events-auto">Terms</a>
+                                    </footer>
                                 </div>
 
                                 {/* Final breathing space */}
-                                <div className="h-[10vh]" />
-
+                                <div className="h-[8vh]" />
                             </div>
                         </Scroll>
                     </ScrollControls>
 
                     <EffectComposer multisampling={0}>
-                        <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.35} />
-                        <Vignette offset={0.25} darkness={0.75} blendFunction={BlendFunction.NORMAL} />
+                        <Bloom
+                            luminanceThreshold={0.5}
+                            luminanceSmoothing={0.5}
+                            intensity={0.5}
+                            radius={0.9}
+                            mipmapBlur
+                        />
+                        <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.15} />
+                        <Vignette offset={0.25} darkness={0.65} blendFunction={BlendFunction.NORMAL} />
                     </EffectComposer>
 
                     <Preload all />
