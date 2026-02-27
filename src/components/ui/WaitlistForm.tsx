@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { submitWaitlist } from '@/app/actions';
 import { ArrowRight, Check, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -12,7 +11,7 @@ interface WaitlistFormProps {
 }
 
 export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps) {
-    const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+    const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -20,15 +19,39 @@ export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps)
         if (status === 'loading' || status === 'success') return;
 
         setStatus('loading');
-        const formData = new FormData(e.currentTarget);
-        const result = await submitWaitlist(formData);
+        setMessage('');
 
-        if (result.success) {
-            setStatus('success');
-            setMessage(result.message);
-        } else {
-            setStatus('idle');
-            setMessage(result.message);
+        const formData = new FormData(e.currentTarget);
+        const email = formData.get('email') as string;
+
+        try {
+            const res = await fetch('/api/waitlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setStatus('success');
+                setMessage(data.message);
+            } else {
+                setStatus('error');
+                setMessage(data.message);
+                // Reset to idle after 3s so user can retry
+                setTimeout(() => {
+                    setStatus('idle');
+                    setMessage('');
+                }, 3000);
+            }
+        } catch {
+            setStatus('error');
+            setMessage('Something went wrong. Try again.');
+            setTimeout(() => {
+                setStatus('idle');
+                setMessage('');
+            }, 3000);
         }
     };
 
@@ -42,7 +65,7 @@ export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps)
                     name="email"
                     placeholder="Enter your email"
                     required
-                    disabled={status !== 'idle'}
+                    disabled={status === 'loading' || status === 'success'}
                     className={cn(
                         'w-full bg-white/[0.03] border border-white/[0.1] text-white rounded-full',
                         'placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all duration-300',
@@ -52,7 +75,7 @@ export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps)
                 />
                 <button
                     type="submit"
-                    disabled={status !== 'idle'}
+                    disabled={status === 'loading' || status === 'success'}
                     className={cn(
                         'absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center',
                         'transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed',
@@ -61,7 +84,7 @@ export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps)
                     )}
                 >
                     <AnimatePresence mode="wait">
-                        {status === 'idle' && (
+                        {(status === 'idle' || status === 'error') && (
                             <motion.div
                                 key="arrow"
                                 initial={{ opacity: 0, scale: 0.8 }}
