@@ -1,0 +1,924 @@
+'use client';
+
+import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { useScroll } from '@react-three/drei';
+import * as THREE from 'three';
+import { TysonWorld } from './worlds/TysonWorld';
+import { ConquistadorWorld } from './worlds/ConquistadorWorld';
+import { ProductionDemo } from './worlds/ProductionDemo';
+import { FoundersPresence } from './worlds/FoundersPresence';
+import { ClosingWorld } from './worlds/ClosingWorld';
+
+/*
+  CINEMATIC SCENE — EIGHT PHASES (one continuous space)
+  
+  Scroll 0.00–0.15: THE VOID
+    Amber dust, darkness, camera pushes in
+  
+  Scroll 0.15–0.30: THE FRACTURE
+    Dust freezes → shards materialize, cold lighting, instability
+  
+  Scroll 0.30–0.42: THE PRODUCTION
+    Shards settle → architecture, floor grid, camera paths
+  
+  Scroll 0.42–0.54: TYSON — "Lightning in a Bottle"
+    Intimate boxing ring, lone figure, harsh tungsten
+  
+  Scroll 0.54–0.66: CONQUISTADOR
+    Vast historical landscape, ancient structures, golden hour
+  
+  Scroll 0.66–0.78: WORLD REUSE
+    Same world, multiple camera paths, production overlay
+  
+  Scroll 0.78–0.92: FOUNDERS
+    Three figures standing in the world they built
+  
+  Scroll 0.92–1.00: CLOSING
+    Motion decelerates. Single warm light. Space to land.
+    
+  Each transition is spatial — you travel through it.
+*/
+
+// ─── CONSTANTS ───
+const DUST_COUNT = 2000;
+const SHARD_COUNT = 35;
+const BOKEH_COUNT = 18;
+const GRID_LINES = 40;
+const FIGURE_COUNT = 5;
+
+// ─── COLORS ───
+const AMBER = new THREE.Color('#D4A04A');
+const COLD_BLUE = new THREE.Color('#4A6FA5');
+const VIOLET = new THREE.Color('#6B4C9A');
+const WARM_WHITE = new THREE.Color('#E8DDD0');
+const STAGE_GREEN = new THREE.Color('#2A8F6A');
+const DARK_WARM = new THREE.Color('#0a0806');
+const DARK_COLD = new THREE.Color('#060810');
+const DARK_STUDIO = new THREE.Color('#08080a');
+
+const _color = new THREE.Color();
+const _vec3 = new THREE.Vector3();
+const _lookSmooth = new THREE.Vector3();
+
+// Ken Perlin's smootherstep — C2-continuous, no acceleration discontinuities
+function smootherstep(edge0: number, edge1: number, x: number): number {
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+// ═══════════════════════════════════════════════
+//  BACKGROUND: Atmosphere Transitions
+// ═══════════════════════════════════════════════
+function AtmosphericBackground({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const warmGlowRef = useRef<THREE.Mesh>(null);
+    const coldGlowRef = useRef<THREE.Mesh>(null);
+    const studioGlowRef = useRef<THREE.Mesh>(null);
+    const deepNebulaRef = useRef<THREE.Mesh>(null);
+    const midHazeRef = useRef<THREE.Mesh>(null);
+    const nearVeilRef = useRef<THREE.Mesh>(null);
+
+    useFrame(({ clock, scene }) => {
+        const t = scrollRef.current;
+        const time = clock.elapsedTime;
+
+        // Warm glow: visible in void, fades during fracture
+        if (warmGlowRef.current) {
+            const mat = warmGlowRef.current.material as THREE.MeshBasicMaterial;
+            const base = 0.07 + Math.sin(time * 0.15) * 0.015;
+            mat.opacity = base * Math.max(0, 1 - t * 3);
+        }
+
+        // Cold glow: visible during fracture, fades in production
+        if (coldGlowRef.current) {
+            const mat = coldGlowRef.current.material as THREE.MeshBasicMaterial;
+            const fractureVisibility = THREE.MathUtils.smoothstep(t, 0.15, 0.35) * (1 - THREE.MathUtils.smoothstep(t, 0.42, 0.55));
+            mat.opacity = fractureVisibility * 0.12;
+            _color.lerpColors(COLD_BLUE, VIOLET, Math.sin(time * 0.2) * 0.5 + 0.5);
+            mat.color.copy(_color);
+        }
+
+        // Studio glow: warm overhead, appears in production
+        if (studioGlowRef.current) {
+            const mat = studioGlowRef.current.material as THREE.MeshBasicMaterial;
+            mat.opacity = THREE.MathUtils.smoothstep(t, 0.42, 0.6) * 0.06;
+        }
+
+        // ── DEPTH LAYERS ──
+
+        // Deep nebula — very far background, slow drift (parallax: barely moves)
+        if (deepNebulaRef.current) {
+            const mat = deepNebulaRef.current.material as THREE.MeshBasicMaterial;
+            const nebulaVis = (1 - smootherstep(0.7, 0.95, t)) * 0.04;
+            mat.opacity = nebulaVis + Math.sin(time * 0.08) * 0.005;
+            deepNebulaRef.current.position.x = -20 + Math.sin(time * 0.012) * 2;
+            deepNebulaRef.current.position.y = 5 + Math.cos(time * 0.01) * 1;
+        }
+
+        // Mid haze — atmospheric depth layer, drifts more than nebula
+        if (midHazeRef.current) {
+            const mat = midHazeRef.current.material as THREE.MeshBasicMaterial;
+            const hazeVis = smootherstep(0.05, 0.25, t) * (1 - smootherstep(0.6, 0.85, t)) * 0.06;
+            mat.opacity = hazeVis;
+            _color.lerpColors(COLD_BLUE, VIOLET, Math.sin(time * 0.15 + 1.0) * 0.5 + 0.5);
+            mat.color.copy(_color);
+            midHazeRef.current.position.x = 8 + Math.sin(time * 0.025) * 4;
+            midHazeRef.current.position.y = -3 + Math.cos(time * 0.02) * 2;
+        }
+
+        // Near veil — foreground depth, noticeable parallax drift
+        if (nearVeilRef.current) {
+            const mat = nearVeilRef.current.material as THREE.MeshBasicMaterial;
+            const veilVis = smootherstep(0.10, 0.30, t) * (1 - smootherstep(0.50, 0.65, t)) * 0.035;
+            mat.opacity = veilVis;
+            nearVeilRef.current.position.x = Math.sin(time * 0.04) * 6;
+            nearVeilRef.current.position.y = 2 + Math.cos(time * 0.035) * 3;
+        }
+
+        // Fog transitions — smooth multi-phase, no hard breaks
+        const fog = scene.fog as THREE.Fog;
+        if (fog) {
+            const voidToFracture = smootherstep(0.0, 0.30, t);
+            const fractureToProduction = smootherstep(0.25, 0.50, t);
+            const productionToLate = smootherstep(0.55, 0.85, t);
+
+            _color.copy(DARK_WARM);
+            _color.lerp(DARK_COLD, voidToFracture);
+            _color.lerp(DARK_STUDIO, fractureToProduction);
+            fog.color.copy(_color);
+
+            fog.near = THREE.MathUtils.lerp(
+                THREE.MathUtils.lerp(15, 8, voidToFracture),
+                5,
+                fractureToProduction
+            );
+            fog.far = THREE.MathUtils.lerp(
+                THREE.MathUtils.lerp(55, 35, voidToFracture),
+                THREE.MathUtils.lerp(45, 70, productionToLate),
+                fractureToProduction
+            );
+        }
+    });
+
+    return (
+        <group>
+            {/* Primary glows */}
+            <mesh ref={warmGlowRef} position={[14, 10, -45]}>
+                <sphereGeometry args={[20, 32, 32]} />
+                <meshBasicMaterial color="#D4A04A" transparent opacity={0.07} side={THREE.BackSide} />
+            </mesh>
+            <mesh ref={coldGlowRef} position={[-10, -5, -35]}>
+                <sphereGeometry args={[25, 32, 32]} />
+                <meshBasicMaterial color="#4A6FA5" transparent opacity={0} side={THREE.BackSide} />
+            </mesh>
+            <mesh ref={studioGlowRef} position={[0, 15, -30]}>
+                <sphereGeometry args={[20, 24, 24]} />
+                <meshBasicMaterial color="#E8DDD0" transparent opacity={0} side={THREE.BackSide} />
+            </mesh>
+
+            {/* Deep nebula — far background, barely moves (strong depth cue) */}
+            <mesh ref={deepNebulaRef} position={[-20, 5, -80]}>
+                <sphereGeometry args={[35, 16, 16]} />
+                <meshBasicMaterial color="#2A1A3A" transparent opacity={0.04} side={THREE.BackSide} />
+            </mesh>
+
+            {/* Mid atmospheric haze — between midground and background */}
+            <mesh ref={midHazeRef} position={[8, -3, -50]}>
+                <sphereGeometry args={[18, 16, 16]} />
+                <meshBasicMaterial color="#4A6FA5" transparent opacity={0} side={THREE.BackSide} />
+            </mesh>
+
+            {/* Near veil — foreground atmosphere, parallax-visible */}
+            <mesh ref={nearVeilRef} position={[0, 2, -15]}>
+                <sphereGeometry args={[12, 12, 12]} />
+                <meshBasicMaterial color="#6B4C9A" transparent opacity={0} side={THREE.BackSide} />
+            </mesh>
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  MIDGROUND: Dust → Shards → Architecture
+// ═══════════════════════════════════════════════
+function DustToArchitecture({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const dustRef = useRef<THREE.InstancedMesh>(null);
+    const shardRef = useRef<THREE.InstancedMesh>(null);
+    const shardWireRef = useRef<THREE.InstancedMesh>(null);
+    const dummy = useMemo(() => new THREE.Object3D(), []);
+
+    const dustData = useMemo(() => {
+        const d = {
+            positions: new Float32Array(DUST_COUNT * 3),
+            sizes: new Float32Array(DUST_COUNT),
+            driftSpeeds: new Float32Array(DUST_COUNT * 3),
+            phases: new Float32Array(DUST_COUNT),
+        };
+        for (let i = 0; i < DUST_COUNT; i++) {
+            const i3 = i * 3;
+            d.positions[i3] = (Math.random() - 0.5) * 50;
+            d.positions[i3 + 1] = (Math.random() - 0.5) * 30;
+            d.positions[i3 + 2] = -8 - Math.random() * 40;
+            d.sizes[i] = 0.015 + Math.random() * 0.04;
+            d.driftSpeeds[i3] = (Math.random() - 0.5) * 0.08;
+            d.driftSpeeds[i3 + 1] = (Math.random() - 0.5) * 0.04;
+            d.driftSpeeds[i3 + 2] = (Math.random() - 0.5) * 0.02;
+            d.phases[i] = Math.random() * Math.PI * 2;
+        }
+        return d;
+    }, []);
+
+    // Shards: scattered positions (fracture) → locked positions (production)
+    const shardData = useMemo(() => {
+        const s = [];
+        for (let i = 0; i < SHARD_COUNT; i++) {
+            // Fracture position: chaotic, scattered
+            const fracturePos = new THREE.Vector3(
+                (Math.random() - 0.5) * 35,
+                (Math.random() - 0.5) * 20,
+                -15 - Math.random() * 25
+            );
+
+            // Production position: orderly, architectural — walls/panels
+            const section = i % 4;
+            let prodPos: THREE.Vector3;
+            if (section === 0) {
+                // Left wall
+                prodPos = new THREE.Vector3(-12 - Math.random() * 2, -2 + Math.random() * 10, -20 - Math.random() * 15);
+            } else if (section === 1) {
+                // Right wall
+                prodPos = new THREE.Vector3(12 + Math.random() * 2, -2 + Math.random() * 10, -20 - Math.random() * 15);
+            } else if (section === 2) {
+                // Back wall
+                prodPos = new THREE.Vector3((Math.random() - 0.5) * 20, -2 + Math.random() * 10, -35 - Math.random() * 5);
+            } else {
+                // Ceiling panels
+                prodPos = new THREE.Vector3((Math.random() - 0.5) * 16, 9 + Math.random() * 3, -22 - Math.random() * 12);
+            }
+
+            s.push({
+                fracturePos,
+                prodPos,
+                scale: 0.4 + Math.random() * 1.8,
+                prodScale: 1.2 + Math.random() * 2.5,
+                rotSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.4,
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.2
+                ),
+                // Production: fixed rotation (locked panel)
+                prodRot: new THREE.Euler(
+                    section === 0 ? 0 : section === 1 ? 0 : section === 2 ? 0 : Math.PI / 2,
+                    section === 0 ? Math.PI / 2 : section === 1 ? -Math.PI / 2 : 0,
+                    0
+                ),
+                wobblePhase: Math.random() * Math.PI * 2,
+                wobbleAmp: 0.3 + Math.random() * 0.5,
+            });
+        }
+        return s;
+    }, []);
+
+    useFrame(({ clock }) => {
+        const t = scrollRef.current;
+        const time = clock.elapsedTime;
+
+        // Phase boundaries
+        const fractureStart = 0.15;
+        const fractureEnd = 0.35;
+        const productionStart = 0.38;
+        const productionEnd = 0.55;
+
+        // ── DUST ──
+        if (dustRef.current) {
+            const dustOpacity = Math.max(0, 1 - t * 3) * 0.55;
+            const dustMat = dustRef.current.material as THREE.MeshStandardMaterial;
+            dustMat.opacity = dustOpacity;
+            _color.lerpColors(AMBER, COLD_BLUE, Math.min(t * 2.5, 1));
+            dustMat.color.copy(_color);
+            dustMat.emissive.copy(_color);
+
+            const driftScale = Math.max(0, 1 - t * 2);
+            for (let i = 0; i < DUST_COUNT; i++) {
+                const i3 = i * 3;
+                const phase = dustData.phases[i];
+                dummy.position.set(
+                    dustData.positions[i3] + Math.sin(time * dustData.driftSpeeds[i3] + phase) * 1.5 * driftScale,
+                    dustData.positions[i3 + 1] + Math.cos(time * dustData.driftSpeeds[i3 + 1] + phase) * 0.8 * driftScale,
+                    dustData.positions[i3 + 2]
+                );
+                dummy.scale.setScalar(dustData.sizes[i]);
+                dummy.updateMatrix();
+                dustRef.current.setMatrixAt(i, dummy.matrix);
+            }
+            dustRef.current.instanceMatrix.needsUpdate = true;
+        }
+
+        // ── SHARDS → ARCHITECTURE ──
+        if (shardRef.current && shardWireRef.current) {
+            const shardVisibility = THREE.MathUtils.smoothstep(t, fractureStart, fractureEnd);
+            const assemblyProgress = THREE.MathUtils.smoothstep(t, productionStart, productionEnd);
+
+            const shardMat = shardRef.current.material as THREE.MeshStandardMaterial;
+            const wireMat = shardWireRef.current.material as THREE.MeshBasicMaterial;
+
+            // In production: surfaces become more opaque, wireframes dim
+            shardMat.opacity = shardVisibility * THREE.MathUtils.lerp(0.5, 0.75, assemblyProgress);
+            wireMat.opacity = shardVisibility * THREE.MathUtils.lerp(0.25, 0.08, assemblyProgress);
+
+            // Color shifts: cold blue wireframe → subtle green (production tool color)
+            _color.lerpColors(COLD_BLUE, STAGE_GREEN, assemblyProgress * 0.6);
+            wireMat.color.copy(_color);
+
+            // Surface becomes warmer in production
+            _color.lerpColors(new THREE.Color('#1A1A2E'), new THREE.Color('#1A1A1A'), assemblyProgress);
+            shardMat.color.copy(_color);
+            shardMat.metalness = THREE.MathUtils.lerp(0.35, 0.15, assemblyProgress);
+
+            for (let i = 0; i < SHARD_COUNT; i++) {
+                const shard = shardData[i];
+
+                // Position lerp: fracture chaos → production architecture
+                dummy.position.lerpVectors(shard.fracturePos, shard.prodPos, assemblyProgress);
+
+                // Wobble decays to zero in production (stability)
+                const wobbleDecay = 1 - assemblyProgress;
+                dummy.position.x += Math.sin(time * 0.5 + shard.wobblePhase) * shard.wobbleAmp * wobbleDecay;
+                dummy.position.y += Math.cos(time * 0.4 + shard.wobblePhase * 1.3) * shard.wobbleAmp * 0.6 * wobbleDecay;
+
+                // Rotation: tumble → locked panel orientation
+                dummy.rotation.set(
+                    THREE.MathUtils.lerp(time * shard.rotSpeed.x, shard.prodRot.x, assemblyProgress),
+                    THREE.MathUtils.lerp(time * shard.rotSpeed.y, shard.prodRot.y, assemblyProgress),
+                    THREE.MathUtils.lerp(time * shard.rotSpeed.z, shard.prodRot.z, assemblyProgress),
+                );
+
+                // Scale: small shards → large panels
+                const s = THREE.MathUtils.lerp(shard.scale, shard.prodScale, assemblyProgress) * shardVisibility;
+                dummy.scale.set(
+                    s,
+                    s * THREE.MathUtils.lerp(1.6, 1.2, assemblyProgress),
+                    s * THREE.MathUtils.lerp(0.06, 0.03, assemblyProgress)
+                );
+                dummy.updateMatrix();
+
+                shardRef.current.setMatrixAt(i, dummy.matrix);
+                shardWireRef.current.setMatrixAt(i, dummy.matrix);
+            }
+            shardRef.current.instanceMatrix.needsUpdate = true;
+            shardWireRef.current.instanceMatrix.needsUpdate = true;
+        }
+    });
+
+    return (
+        <group>
+            <instancedMesh ref={dustRef} args={[undefined, undefined, DUST_COUNT]} frustumCulled={false}>
+                <sphereGeometry args={[1, 4, 4]} />
+                <meshStandardMaterial color="#D4A04A" emissive="#D4A04A" emissiveIntensity={0.8} transparent opacity={0.55} roughness={1} />
+            </instancedMesh>
+            <instancedMesh ref={shardRef} args={[undefined, undefined, SHARD_COUNT]} frustumCulled={false}>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshStandardMaterial color="#1A1A2E" metalness={0.35} roughness={0.15} transparent opacity={0} envMapIntensity={0.4} />
+            </instancedMesh>
+            <instancedMesh ref={shardWireRef} args={[undefined, undefined, SHARD_COUNT]} frustumCulled={false}>
+                <boxGeometry args={[1.02, 1.02, 1.02]} />
+                <meshBasicMaterial color="#4A6FA5" wireframe transparent opacity={0} />
+            </instancedMesh>
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  PRODUCTION: Floor Grid (Persistent Ground Plane)
+// ═══════════════════════════════════════════════
+function ProductionFloor({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const groupRef = useRef<THREE.Group>(null);
+
+    const gridLines = useMemo(() => {
+        const lines: { start: THREE.Vector3; end: THREE.Vector3; axis: 'x' | 'z' }[] = [];
+        const halfSize = 20;
+        const spacing = 2;
+
+        // Z-axis lines (into scene)
+        for (let x = -halfSize; x <= halfSize; x += spacing) {
+            lines.push({
+                start: new THREE.Vector3(x, -4, -5),
+                end: new THREE.Vector3(x, -4, -45),
+                axis: 'z',
+            });
+        }
+
+        // X-axis lines (across scene)
+        for (let z = -5; z >= -45; z -= spacing) {
+            lines.push({
+                start: new THREE.Vector3(-halfSize, -4, z),
+                end: new THREE.Vector3(halfSize, -4, z),
+                axis: 'x',
+            });
+        }
+
+        return lines;
+    }, []);
+
+    useFrame(() => {
+        if (!groupRef.current) return;
+        const t = scrollRef.current;
+        const visibility = THREE.MathUtils.smoothstep(t, 0.30, 0.45) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+
+        groupRef.current.children.forEach((child) => {
+            const line = child as THREE.Line;
+            const mat = line.material as THREE.LineBasicMaterial;
+            mat.opacity = visibility * 0.15;
+        });
+    });
+
+    return (
+        <group ref={groupRef}>
+            {gridLines.map((line, i) => {
+                const points = [line.start, line.end];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                return (
+                    // @ts-ignore — R3F line element, not SVG
+                    <line key={i} geometry={geometry}>
+                        {/* @ts-ignore - R3F line material */}
+                        <lineBasicMaterial color="#2A8F6A" transparent opacity={0} />
+                    </line>
+                );
+            })}
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  PRODUCTION: Camera Path (Spline visualized in space)
+// ═══════════════════════════════════════════════
+function CameraPath({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const lineRef = useRef<THREE.Line>(null);
+    const dotRef = useRef<THREE.Mesh>(null);
+
+    // A smooth camera path spline through the production space
+    const curve = useMemo(() => {
+        return new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-8, 0, -10),
+            new THREE.Vector3(-4, 1, -18),
+            new THREE.Vector3(2, 2, -24),
+            new THREE.Vector3(6, 0.5, -30),
+            new THREE.Vector3(3, -1, -35),
+        ]);
+    }, []);
+
+    const pathGeometry = useMemo(() => {
+        const points = curve.getPoints(80);
+        return new THREE.BufferGeometry().setFromPoints(points);
+    }, [curve]);
+
+    useFrame(({ clock }) => {
+        const t = scrollRef.current;
+        const visibility = THREE.MathUtils.smoothstep(t, 0.38, 0.50) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+        const time = clock.elapsedTime;
+
+        if (lineRef.current) {
+            const mat = lineRef.current.material as THREE.LineBasicMaterial;
+            mat.opacity = visibility * 0.4;
+        }
+
+        // Moving dot along the path — shows "active camera"
+        if (dotRef.current) {
+            const pathProgress = ((time * 0.05) % 1);
+            const pos = curve.getPoint(pathProgress);
+            dotRef.current.position.copy(pos);
+
+            const mat = dotRef.current.material as THREE.MeshBasicMaterial;
+            mat.opacity = visibility * 0.9;
+        }
+    });
+
+    return (
+        <group>
+            {/* Camera path line */}
+            {/* @ts-ignore — R3F line element */}
+            <line ref={lineRef} geometry={pathGeometry}>
+                {/* @ts-ignore */}
+                <lineBasicMaterial color="#D4A04A" transparent opacity={0} linewidth={1} />
+            </line>
+
+            {/* Active camera dot — traveling along path */}
+            <mesh ref={dotRef}>
+                <sphereGeometry args={[0.15, 8, 8]} />
+                <meshBasicMaterial color="#D4A04A" transparent opacity={0} />
+            </mesh>
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  PRODUCTION: Figure Silhouettes (Character Placeholders)
+// ═══════════════════════════════════════════════
+function Figures({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const groupRef = useRef<THREE.Group>(null);
+
+    const figureData = useMemo(() => {
+        return [
+            { pos: new THREE.Vector3(-6, -2, -20), scale: 1.0 },
+            { pos: new THREE.Vector3(-2, -2, -26), scale: 0.95 },
+            { pos: new THREE.Vector3(4, -2, -22), scale: 1.05 },
+            { pos: new THREE.Vector3(8, -2, -28), scale: 0.9 },
+            { pos: new THREE.Vector3(0, -2, -32), scale: 1.0 },
+        ];
+    }, []);
+
+    useFrame(() => {
+        if (!groupRef.current) return;
+        const t = scrollRef.current;
+        const visibility = THREE.MathUtils.smoothstep(t, 0.40, 0.55) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+
+        groupRef.current.children.forEach((child) => {
+            child.children.forEach((mesh) => {
+                const m = mesh as THREE.Mesh;
+                const mat = m.material as THREE.MeshStandardMaterial;
+                mat.opacity = visibility * 0.5;
+            });
+        });
+    });
+
+    return (
+        <group ref={groupRef}>
+            {figureData.map((fig, i) => (
+                <group key={i} position={fig.pos} scale={fig.scale}>
+                    {/* Body — simple capsule silhouette */}
+                    <mesh position={[0, 1.2, 0]}>
+                        <capsuleGeometry args={[0.3, 1.2, 4, 8]} />
+                        <meshStandardMaterial
+                            color="#1A1A1A"
+                            emissive="#2A8F6A"
+                            emissiveIntensity={0.15}
+                            transparent
+                            opacity={0}
+                        />
+                    </mesh>
+                    {/* Head */}
+                    <mesh position={[0, 2.2, 0]}>
+                        <sphereGeometry args={[0.25, 8, 8]} />
+                        <meshStandardMaterial
+                            color="#1A1A1A"
+                            emissive="#2A8F6A"
+                            emissiveIntensity={0.15}
+                            transparent
+                            opacity={0}
+                        />
+                    </mesh>
+                </group>
+            ))}
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  PRODUCTION: Stage Boundaries (Wireframe Room Outline)
+// ═══════════════════════════════════════════════
+function StageBounds({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const groupRef = useRef<THREE.Group>(null);
+
+    // Define the outline of the "stage volume" — a rectangular room
+    const edgeGeometry = useMemo(() => {
+        const w = 26, h = 14, d = 35;
+        const hw = w / 2, hh = h / 2;
+        const zStart = -8, zEnd = zStart - d;
+        const yBottom = -4;
+
+        const edges = [
+            // Bottom rectangle
+            [[-hw, yBottom, zStart], [hw, yBottom, zStart]],
+            [[hw, yBottom, zStart], [hw, yBottom, zEnd]],
+            [[hw, yBottom, zEnd], [-hw, yBottom, zEnd]],
+            [[-hw, yBottom, zEnd], [-hw, yBottom, zStart]],
+            // Top rectangle
+            [[-hw, yBottom + h, zStart], [hw, yBottom + h, zStart]],
+            [[hw, yBottom + h, zStart], [hw, yBottom + h, zEnd]],
+            [[hw, yBottom + h, zEnd], [-hw, yBottom + h, zEnd]],
+            [[-hw, yBottom + h, zEnd], [-hw, yBottom + h, zStart]],
+            // Vertical edges
+            [[-hw, yBottom, zStart], [-hw, yBottom + h, zStart]],
+            [[hw, yBottom, zStart], [hw, yBottom + h, zStart]],
+            [[hw, yBottom, zEnd], [hw, yBottom + h, zEnd]],
+            [[-hw, yBottom, zEnd], [-hw, yBottom + h, zEnd]],
+        ];
+
+        return edges.map(([start, end]) => {
+            return new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(...(start as [number, number, number])),
+                new THREE.Vector3(...(end as [number, number, number])),
+            ]);
+        });
+    }, []);
+
+    useFrame(() => {
+        if (!groupRef.current) return;
+        const t = scrollRef.current;
+        const visibility = THREE.MathUtils.smoothstep(t, 0.35, 0.50) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+
+        groupRef.current.children.forEach((child) => {
+            const line = child as THREE.Line;
+            const mat = line.material as THREE.LineBasicMaterial;
+            mat.opacity = visibility * 0.12;
+        });
+    });
+
+    return (
+        <group ref={groupRef}>
+            {edgeGeometry.map((geo, i) => (
+                // @ts-ignore — R3F line element
+                <line key={i} geometry={geo}>
+                    {/* @ts-ignore */}
+                    <lineBasicMaterial color="#E8DDD0" transparent opacity={0} />
+                </line>
+            ))}
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  FOREGROUND: Bokeh (Color-Adaptive, Depth-Layered)
+// ═══════════════════════════════════════════════
+function BokehOrbs({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const groupRef = useRef<THREE.Group>(null);
+
+    const orbs = useMemo(() => {
+        const data = [];
+        for (let i = 0; i < BOKEH_COUNT; i++) {
+            // Three depth bands: near (z 4-8), mid (z 8-12), far (z 12-16)
+            const depthBand = i % 3; // 0=near, 1=mid, 2=far
+            const zBase = depthBand === 0 ? 4 : depthBand === 1 ? 8 : 12;
+            const zRange = 4;
+
+            data.push({
+                position: new THREE.Vector3(
+                    (Math.random() - 0.5) * 40,
+                    (Math.random() - 0.5) * 25,
+                    zBase + Math.random() * zRange,
+                ),
+                size: depthBand === 0 ? 0.08 + Math.random() * 0.12 : depthBand === 1 ? 0.04 + Math.random() * 0.08 : 0.02 + Math.random() * 0.04,
+                speed: 0.05 + Math.random() * 0.12,
+                phase: Math.random() * Math.PI * 2,
+                baseOpacity: depthBand === 0 ? 0.025 + Math.random() * 0.03 : depthBand === 1 ? 0.015 + Math.random() * 0.02 : 0.008 + Math.random() * 0.012,
+                parallaxFactor: depthBand === 0 ? 1.6 : depthBand === 1 ? 1.0 : 0.4, // near moves more
+                pulseSpeed: 0.3 + Math.random() * 0.6,
+            });
+        }
+        return data;
+    }, []);
+
+    useFrame(({ clock }) => {
+        if (!groupRef.current) return;
+        const time = clock.elapsedTime;
+        const t = scrollRef.current;
+
+        const coldBlend = smootherstep(0.08, 0.40, t);
+        const warmBlend = smootherstep(0.45, 0.85, t);
+
+        groupRef.current.children.forEach((child, i) => {
+            const orb = orbs[i];
+            const mesh = child as THREE.Mesh;
+            const mat = mesh.material as THREE.MeshBasicMaterial;
+
+            // Parallax: near orbs drift more, far orbs drift less
+            const pf = orb.parallaxFactor;
+            mesh.position.x = orb.position.x + Math.sin(time * orb.speed + orb.phase) * 2 * pf;
+            mesh.position.y = orb.position.y + Math.cos(time * orb.speed * 0.7 + orb.phase) * 1 * pf;
+
+            // Size pulse — subtle breathing
+            const sizePulse = 1 + Math.sin(time * orb.pulseSpeed + orb.phase) * 0.15;
+            mesh.scale.setScalar(sizePulse);
+
+            // Color: amber → cold blue → warm white
+            _color.copy(AMBER);
+            _color.lerp(COLD_BLUE, coldBlend);
+            _color.lerp(WARM_WHITE, warmBlend);
+            mat.color.copy(_color);
+            mat.opacity = orb.baseOpacity * (Math.sin(time * 0.5 + orb.phase) * 0.3 + 0.7);
+        });
+    });
+
+    return (
+        <group ref={groupRef}>
+            {orbs.map((orb, i) => (
+                <mesh key={i} position={orb.position}>
+                    <circleGeometry args={[orb.size, 16]} />
+                    <meshBasicMaterial color="#D4A04A" transparent opacity={orb.baseOpacity} side={THREE.DoubleSide} depthWrite={false} />
+                </mesh>
+            ))}
+        </group>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  LIGHTING: Three-Phase Adaptive
+// ═══════════════════════════════════════════════
+function AdaptiveLighting({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const keyLightRef = useRef<THREE.DirectionalLight>(null);
+    const coldLight1Ref = useRef<THREE.PointLight>(null);
+    const coldLight2Ref = useRef<THREE.PointLight>(null);
+    const studioKeyRef = useRef<THREE.SpotLight>(null);
+    const studioFillRef = useRef<THREE.PointLight>(null);
+    const studioRimRef = useRef<THREE.PointLight>(null);
+
+    useFrame((_state, delta) => {
+        const t = scrollRef.current;
+        const lerpRate = 1 - Math.exp(-4 * delta); // frame-rate-independent damping
+
+        // Phase 1: Amber key light — smootherstep fade into fracture
+        if (keyLightRef.current) {
+            const amberTarget = (1 - smootherstep(0.0, 0.35, t)) * 0.35;
+            keyLightRef.current.intensity += (amberTarget - keyLightRef.current.intensity) * lerpRate;
+        }
+
+        // Phase 2: Cold lights — smootherstep in and out for fracture
+        const coldTarget = smootherstep(0.12, 0.25, t) * (1 - smootherstep(0.38, 0.52, t)) * 0.5;
+        if (coldLight1Ref.current) coldLight1Ref.current.intensity += (coldTarget - coldLight1Ref.current.intensity) * lerpRate;
+        if (coldLight2Ref.current) coldLight2Ref.current.intensity += (coldTarget * 0.7 - coldLight2Ref.current.intensity) * lerpRate;
+
+        // Phase 3: Studio lights — wider transition with damping
+        const studioTarget = smootherstep(0.38, 0.52, t) * (1 - smootherstep(0.82, 0.96, t));
+        if (studioKeyRef.current) studioKeyRef.current.intensity += (studioTarget * 0.8 - studioKeyRef.current.intensity) * lerpRate;
+        if (studioFillRef.current) studioFillRef.current.intensity += (studioTarget * 0.25 - studioFillRef.current.intensity) * lerpRate;
+        if (studioRimRef.current) studioRimRef.current.intensity += (studioTarget * 0.15 - studioRimRef.current.intensity) * lerpRate;
+    });
+
+    return (
+        <>
+            {/* Void: warm amber key */}
+            <directionalLight ref={keyLightRef} position={[18, 12, 8]} intensity={0.35} color="#D4A04A" />
+            <ambientLight intensity={0.008} color="#0a0a1a" />
+
+            {/* Fracture: cold scattered — wider spread for depth contrast */}
+            <pointLight ref={coldLight1Ref} position={[-12, 6, -15]} intensity={0} color="#B8C4E0" distance={35} />
+            <pointLight ref={coldLight2Ref} position={[8, -5, -25]} intensity={0} color="#6B4C9A" distance={30} />
+
+            {/* Edge volumetrics — subtle color spill for depth (always-on, very low) */}
+            <pointLight position={[-25, -2, -40]} intensity={0.04} color="#2A1A3A" distance={50} />
+            <pointLight position={[22, 8, -55]} intensity={0.03} color="#1A2A3A" distance={45} />
+
+            {/* Production: controlled studio three-point */}
+            <spotLight
+                ref={studioKeyRef}
+                position={[0, 14, -20]}
+                angle={0.6}
+                penumbra={0.8}
+                intensity={0}
+                color="#E8DDD0"
+                distance={45}
+                target-position={[0, -4, -25]}
+            />
+            <pointLight ref={studioFillRef} position={[-10, 3, -18]} intensity={0} color="#C4B5A0" distance={25} />
+            <pointLight ref={studioRimRef} position={[12, 6, -30]} intensity={0} color="#D4A04A" distance={20} />
+        </>
+    );
+}
+
+// ═══════════════════════════════════════════════
+//  CAMERA: Eight-Phase Path
+// ═══════════════════════════════════════════════
+function CameraController({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
+    const startTime = useRef<number | null>(null);
+    const loadComplete = useRef(false);
+
+    const loadStart = useMemo(() => new THREE.Vector3(0, 0.5, 26), []);
+    const loadEnd = useMemo(() => new THREE.Vector3(0, 0, 20), []);
+
+    // Eight waypoints for the full journey
+    const waypoints = useMemo(() => [
+        new THREE.Vector3(0, 0, 20),        // 0: Void
+        new THREE.Vector3(4, -1, 6),         // 1: Fracture
+        new THREE.Vector3(2, 4, -5),         // 2: Production
+        new THREE.Vector3(1, 1, -18),        // 3: Tyson (close, ring-level)
+        new THREE.Vector3(-3, 8, -28),       // 4: Conquistador (elevated, wide)
+        new THREE.Vector3(0, 10, -32),       // 5: World reuse (high, overview)
+        new THREE.Vector3(0, 3, -38),        // 6: Founders (eye-level, among them)
+        new THREE.Vector3(0, 1, -40),        // 7: Closing (still, centered, low)
+    ], []);
+
+    const lookTargets = useMemo(() => [
+        new THREE.Vector3(0, 0, 0),          // Void: straight ahead
+        new THREE.Vector3(-2, -2, -15),      // Fracture: into field
+        new THREE.Vector3(0, -2, -25),       // Production: down into stage
+        new THREE.Vector3(0, -1, -25),       // Tyson: at the figure
+        new THREE.Vector3(0, -3, -40),       // Conquistador: into distance
+        new THREE.Vector3(0, -3, -42),       // World reuse: terrain overview
+        new THREE.Vector3(0, -2, -42),       // Founders: at the figures
+        new THREE.Vector3(0, 0, -50),        // Closing: straight ahead, still
+    ], []);
+
+    // Scroll breakpoints for each segment
+    const breakpoints = useMemo(() => [0, 0.15, 0.30, 0.42, 0.54, 0.66, 0.78, 0.92], []);
+
+    useFrame(({ clock, camera }, delta) => {
+        if (startTime.current === null) {
+            startTime.current = clock.elapsedTime;
+            camera.position.copy(loadStart);
+            _lookSmooth.set(0, 0, 0);
+        }
+
+        const elapsed = clock.elapsedTime - startTime.current;
+        const t = scrollRef.current;
+        // Frame-rate-independent exponential damping
+        const posLerp = 1 - Math.exp(-3.5 * delta);
+        const lookLerp = 1 - Math.exp(-4.0 * delta);
+
+        // Phase 0: Load push-in (quintic ease-out)
+        if (!loadComplete.current && t < 0.02) {
+            const pushDuration = 5;
+            const pushProgress = Math.min(elapsed / pushDuration, 1);
+            // Quintic ease-out: feels heavy then settles
+            const p = 1 - pushProgress;
+            const eased = 1 - p * p * p * p * p;
+            _vec3.lerpVectors(loadStart, loadEnd, eased);
+            camera.position.lerp(_vec3, posLerp);
+            if (pushProgress >= 1) loadComplete.current = true;
+
+            if (pushProgress >= 0.8) {
+                const driftT = elapsed - pushDuration * 0.8;
+                camera.position.x += Math.sin(driftT * 0.08) * 0.1;
+                camera.position.y += Math.cos(driftT * 0.06) * 0.06;
+            }
+        } else {
+            loadComplete.current = true;
+
+            // Find current segment
+            let segIndex = 0;
+            for (let i = breakpoints.length - 1; i >= 0; i--) {
+                if (t >= breakpoints[i]) {
+                    segIndex = i;
+                    break;
+                }
+            }
+
+            const nextIndex = Math.min(segIndex + 1, waypoints.length - 1);
+            const segStart_bp = breakpoints[segIndex];
+            const segEnd_bp = segIndex < breakpoints.length - 1
+                ? breakpoints[segIndex + 1]
+                : 1.0;
+            const segT = segEnd_bp > segStart_bp
+                ? (t - segStart_bp) / (segEnd_bp - segStart_bp)
+                : 0;
+
+            // Smootherstep (C2-continuous quintic) — no acceleration discontinuities at segment boundaries
+            const eased = segT * segT * segT * (segT * (segT * 6 - 15) + 10);
+            _vec3.lerpVectors(waypoints[segIndex], waypoints[nextIndex], eased);
+
+            // Drift: organic breathing that decelerates toward closing
+            const driftDecay = 1 - smootherstep(0.5, 0.95, t) * 0.95;
+            _vec3.x += Math.sin(clock.elapsedTime * 0.06) * 0.08 * driftDecay;
+            _vec3.y += Math.cos(clock.elapsedTime * 0.05) * 0.05 * driftDecay;
+
+            // Damped position follow — prevents instant jumps at segment boundaries
+            camera.position.lerp(_vec3, posLerp);
+
+            // Smooth lookAt target — damped to prevent snapping
+            const lookTarget = new THREE.Vector3();
+            lookTarget.lerpVectors(lookTargets[segIndex], lookTargets[nextIndex], eased);
+            _lookSmooth.lerp(lookTarget, lookLerp);
+            camera.lookAt(_lookSmooth);
+        }
+    });
+
+    return null;
+}
+
+// ═══════════════════════════════════════════════
+//  MAIN EXPORT
+// ═══════════════════════════════════════════════
+export function CinematicScene() {
+    const scroll = useScroll();
+    const scrollRef = useRef(0);
+
+    useFrame(() => {
+        scrollRef.current = scroll.offset;
+    });
+
+    return (
+        <>
+            <fog attach="fog" args={['#0a0806', 12, 80]} />
+
+            {/* Shared layers (all worlds) */}
+            <AtmosphericBackground scrollRef={scrollRef} />
+            <DustToArchitecture scrollRef={scrollRef} />
+            <BokehOrbs scrollRef={scrollRef} />
+            <AdaptiveLighting scrollRef={scrollRef} />
+            <CameraController scrollRef={scrollRef} />
+
+            {/* Production elements */}
+            <ProductionFloor scrollRef={scrollRef} />
+            <CameraPath scrollRef={scrollRef} />
+            <Figures scrollRef={scrollRef} />
+            <StageBounds scrollRef={scrollRef} />
+
+            {/* Real production worlds */}
+            <TysonWorld scrollRef={scrollRef} />
+            <ConquistadorWorld scrollRef={scrollRef} />
+            <ProductionDemo scrollRef={scrollRef} />
+
+            {/* Final layer */}
+            <FoundersPresence scrollRef={scrollRef} />
+            <ClosingWorld scrollRef={scrollRef} />
+        </>
+    );
+}
