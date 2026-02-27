@@ -4,38 +4,30 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useScroll } from '@react-three/drei';
 import * as THREE from 'three';
-import { TysonWorld } from './worlds/TysonWorld';
-import { ConquistadorWorld } from './worlds/ConquistadorWorld';
+import { InsightWorld } from './worlds/InsightWorld';
 import { ProductionDemo } from './worlds/ProductionDemo';
-import { FoundersPresence } from './worlds/FoundersPresence';
 import { ClosingWorld } from './worlds/ClosingWorld';
 
 /*
-  CINEMATIC SCENE — EIGHT PHASES (one continuous space)
+  CINEMATIC SCENE — SIX-PHASE CONVERSION FUNNEL
   
-  Scroll 0.00–0.15: THE VOID
-    Amber dust, darkness, camera pushes in
+  Scroll 0.00–0.15: HOOK (Void)
+    Amber dust, darkness, camera pushes in. "Build worlds. Not clips."
   
-  Scroll 0.15–0.30: THE FRACTURE
-    Dust freezes → shards materialize, cold lighting, instability
+  Scroll 0.15–0.30: PROBLEM (Fracture)
+    Dust freezes → shards, cold lighting. "AI video is a dead end."
   
-  Scroll 0.30–0.42: THE PRODUCTION
-    Shards settle → architecture, floor grid, camera paths
+  Scroll 0.30–0.45: INSIGHT (Dawn)
+    Particles converge, warm golden light. "Production needs a world."
   
-  Scroll 0.42–0.54: TYSON — "Lightning in a Bottle"
-    Intimate boxing ring, lone figure, harsh tungsten
+  Scroll 0.45–0.65: SOLUTION (Production)
+    Architecture assembles, floor grid, camera paths. "Gauset is that layer."
   
-  Scroll 0.54–0.66: CONQUISTADOR
-    Vast historical landscape, ancient structures, golden hour
+  Scroll 0.65–0.85: PROOF (World Reuse)
+    Multiple camera paths through persistent terrain. "One world. Infinite shots."
   
-  Scroll 0.66–0.78: WORLD REUSE
-    Same world, multiple camera paths, production overlay
-  
-  Scroll 0.78–0.92: FOUNDERS
-    Three figures standing in the world they built
-  
-  Scroll 0.92–1.00: CLOSING
-    Motion decelerates. Single warm light. Space to land.
+  Scroll 0.85–1.00: CTA (Closing)
+    Motion decelerates. Single warm light. "Join early access."
     
   Each transition is spatial — you travel through it.
 */
@@ -90,23 +82,24 @@ function AtmosphericBackground({ scrollRef }: { scrollRef: React.MutableRefObjec
         }
 
         // Cold glow: visible during fracture, fades in production
+        // Cold glow — fracture phase only
         if (coldGlowRef.current) {
             const mat = coldGlowRef.current.material as THREE.MeshBasicMaterial;
-            const fractureVisibility = THREE.MathUtils.smoothstep(t, 0.15, 0.35) * (1 - THREE.MathUtils.smoothstep(t, 0.42, 0.55));
-            mat.opacity = fractureVisibility * 0.12;
+            const coldFade = smootherstep(0.10, 0.30, t) * (1 - smootherstep(0.30, 0.50, t));
+            mat.opacity = coldFade * 0.12;
             _color.lerpColors(COLD_BLUE, VIOLET, Math.sin(time * 0.2) * 0.5 + 0.5);
             mat.color.copy(_color);
         }
 
-        // Studio glow: warm overhead, appears in production
+        // Studio glow — solution/proof phases
         if (studioGlowRef.current) {
             const mat = studioGlowRef.current.material as THREE.MeshBasicMaterial;
-            mat.opacity = THREE.MathUtils.smoothstep(t, 0.42, 0.6) * 0.06;
+            mat.opacity = smootherstep(0.45, 0.55, t) * (1 - smootherstep(0.80, 0.92, t)) * 0.06;
         }
 
         // ── DEPTH LAYERS ──
 
-        // Deep nebula — very far background, slow drift (parallax: barely moves)
+        // Deep nebula — very far background, slow drift
         if (deepNebulaRef.current) {
             const mat = deepNebulaRef.current.material as THREE.MeshBasicMaterial;
             const nebulaVis = (1 - smootherstep(0.7, 0.95, t)) * 0.04;
@@ -115,10 +108,10 @@ function AtmosphericBackground({ scrollRef }: { scrollRef: React.MutableRefObjec
             deepNebulaRef.current.position.y = 5 + Math.cos(time * 0.01) * 1;
         }
 
-        // Mid haze — atmospheric depth layer, drifts more than nebula
+        // Mid haze — atmospheric depth, drifts more than nebula
         if (midHazeRef.current) {
             const mat = midHazeRef.current.material as THREE.MeshBasicMaterial;
-            const hazeVis = smootherstep(0.05, 0.25, t) * (1 - smootherstep(0.6, 0.85, t)) * 0.06;
+            const hazeVis = smootherstep(0.05, 0.25, t) * (1 - smootherstep(0.42, 0.65, t)) * 0.06;
             mat.opacity = hazeVis;
             _color.lerpColors(COLD_BLUE, VIOLET, Math.sin(time * 0.15 + 1.0) * 0.5 + 0.5);
             mat.color.copy(_color);
@@ -126,36 +119,38 @@ function AtmosphericBackground({ scrollRef }: { scrollRef: React.MutableRefObjec
             midHazeRef.current.position.y = -3 + Math.cos(time * 0.02) * 2;
         }
 
-        // Near veil — foreground depth, noticeable parallax drift
+        // Near veil — foreground depth, parallax drift
         if (nearVeilRef.current) {
             const mat = nearVeilRef.current.material as THREE.MeshBasicMaterial;
-            const veilVis = smootherstep(0.10, 0.30, t) * (1 - smootherstep(0.50, 0.65, t)) * 0.035;
+            const veilVis = smootherstep(0.10, 0.30, t) * (1 - smootherstep(0.42, 0.55, t)) * 0.035;
             mat.opacity = veilVis;
             nearVeilRef.current.position.x = Math.sin(time * 0.04) * 6;
             nearVeilRef.current.position.y = 2 + Math.cos(time * 0.035) * 3;
         }
 
-        // Fog transitions — smooth multi-phase, no hard breaks
+        // Fog transitions — smooth six-phase
         const fog = scene.fog as THREE.Fog;
         if (fog) {
             const voidToFracture = smootherstep(0.0, 0.30, t);
-            const fractureToProduction = smootherstep(0.25, 0.50, t);
-            const productionToLate = smootherstep(0.55, 0.85, t);
+            const fractureToInsight = smootherstep(0.25, 0.40, t);
+            const insightToSolution = smootherstep(0.40, 0.55, t);
+            const solutionToLate = smootherstep(0.60, 0.85, t);
 
             _color.copy(DARK_WARM);
-            _color.lerp(DARK_COLD, voidToFracture);
-            _color.lerp(DARK_STUDIO, fractureToProduction);
+            _color.lerp(DARK_COLD, voidToFracture * (1 - fractureToInsight));
+            _color.lerp(DARK_WARM, fractureToInsight * (1 - insightToSolution) * 0.5);
+            _color.lerp(DARK_STUDIO, insightToSolution);
             fog.color.copy(_color);
 
             fog.near = THREE.MathUtils.lerp(
                 THREE.MathUtils.lerp(15, 8, voidToFracture),
-                5,
-                fractureToProduction
+                THREE.MathUtils.lerp(10, 5, insightToSolution),
+                fractureToInsight
             );
             fog.far = THREE.MathUtils.lerp(
                 THREE.MathUtils.lerp(55, 35, voidToFracture),
-                THREE.MathUtils.lerp(45, 70, productionToLate),
-                fractureToProduction
+                THREE.MathUtils.lerp(50, 70, solutionToLate),
+                insightToSolution
             );
         }
     });
@@ -284,9 +279,9 @@ function DustToArchitecture({ scrollRef }: { scrollRef: React.MutableRefObject<n
 
         // Phase boundaries
         const fractureStart = 0.15;
-        const fractureEnd = 0.35;
-        const productionStart = 0.38;
-        const productionEnd = 0.55;
+        const fractureEnd = 0.30;
+        const productionStart = 0.42;
+        const productionEnd = 0.60;
 
         // ── DUST ──
         if (dustRef.current) {
@@ -422,7 +417,7 @@ function ProductionFloor({ scrollRef }: { scrollRef: React.MutableRefObject<numb
     useFrame(() => {
         if (!groupRef.current) return;
         const t = scrollRef.current;
-        const visibility = THREE.MathUtils.smoothstep(t, 0.30, 0.45) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+        const visibility = THREE.MathUtils.smoothstep(t, 0.42, 0.55) * (1 - THREE.MathUtils.smoothstep(t, 0.82, 0.92));
 
         groupRef.current.children.forEach((child) => {
             const line = child as THREE.Line;
@@ -473,7 +468,7 @@ function CameraPath({ scrollRef }: { scrollRef: React.MutableRefObject<number> }
 
     useFrame(({ clock }) => {
         const t = scrollRef.current;
-        const visibility = THREE.MathUtils.smoothstep(t, 0.38, 0.50) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+        const visibility = THREE.MathUtils.smoothstep(t, 0.45, 0.55) * (1 - THREE.MathUtils.smoothstep(t, 0.82, 0.92));
         const time = clock.elapsedTime;
 
         if (lineRef.current) {
@@ -529,7 +524,7 @@ function Figures({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
     useFrame(() => {
         if (!groupRef.current) return;
         const t = scrollRef.current;
-        const visibility = THREE.MathUtils.smoothstep(t, 0.40, 0.55) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+        const visibility = THREE.MathUtils.smoothstep(t, 0.48, 0.58) * (1 - THREE.MathUtils.smoothstep(t, 0.82, 0.92));
 
         groupRef.current.children.forEach((child) => {
             child.children.forEach((mesh) => {
@@ -614,7 +609,7 @@ function StageBounds({ scrollRef }: { scrollRef: React.MutableRefObject<number> 
     useFrame(() => {
         if (!groupRef.current) return;
         const t = scrollRef.current;
-        const visibility = THREE.MathUtils.smoothstep(t, 0.35, 0.50) * (1 - THREE.MathUtils.smoothstep(t, 0.78, 0.92));
+        const visibility = THREE.MathUtils.smoothstep(t, 0.42, 0.55) * (1 - THREE.MathUtils.smoothstep(t, 0.82, 0.92));
 
         groupRef.current.children.forEach((child) => {
             const line = child as THREE.Line;
@@ -732,12 +727,12 @@ function AdaptiveLighting({ scrollRef }: { scrollRef: React.MutableRefObject<num
         }
 
         // Phase 2: Cold lights — smootherstep in and out for fracture
-        const coldTarget = smootherstep(0.12, 0.25, t) * (1 - smootherstep(0.38, 0.52, t)) * 0.5;
+        const coldTarget = smootherstep(0.12, 0.25, t) * (1 - smootherstep(0.30, 0.45, t)) * 0.5;
         if (coldLight1Ref.current) coldLight1Ref.current.intensity += (coldTarget - coldLight1Ref.current.intensity) * lerpRate;
         if (coldLight2Ref.current) coldLight2Ref.current.intensity += (coldTarget * 0.7 - coldLight2Ref.current.intensity) * lerpRate;
 
-        // Phase 3: Studio lights — wider transition with damping
-        const studioTarget = smootherstep(0.38, 0.52, t) * (1 - smootherstep(0.82, 0.96, t));
+        // Phase 3: Studio lights — solution/proof phases
+        const studioTarget = smootherstep(0.45, 0.55, t) * (1 - smootherstep(0.82, 0.95, t));
         if (studioKeyRef.current) studioKeyRef.current.intensity += (studioTarget * 0.8 - studioKeyRef.current.intensity) * lerpRate;
         if (studioFillRef.current) studioFillRef.current.intensity += (studioTarget * 0.25 - studioFillRef.current.intensity) * lerpRate;
         if (studioRimRef.current) studioRimRef.current.intensity += (studioTarget * 0.15 - studioRimRef.current.intensity) * lerpRate;
@@ -775,7 +770,7 @@ function AdaptiveLighting({ scrollRef }: { scrollRef: React.MutableRefObject<num
 }
 
 // ═══════════════════════════════════════════════
-//  CAMERA: Eight-Phase Path
+//  CAMERA: Six-Phase Path
 // ═══════════════════════════════════════════════
 function CameraController({ scrollRef }: { scrollRef: React.MutableRefObject<number> }) {
     const startTime = useRef<number | null>(null);
@@ -784,31 +779,27 @@ function CameraController({ scrollRef }: { scrollRef: React.MutableRefObject<num
     const loadStart = useMemo(() => new THREE.Vector3(0, 0.5, 26), []);
     const loadEnd = useMemo(() => new THREE.Vector3(0, 0, 20), []);
 
-    // Eight waypoints for the full journey
+    // Six waypoints: Hook → Problem → Insight → Solution → Proof → CTA
     const waypoints = useMemo(() => [
-        new THREE.Vector3(0, 0, 20),        // 0: Void
-        new THREE.Vector3(4, -1, 6),         // 1: Fracture
-        new THREE.Vector3(2, 4, -5),         // 2: Production
-        new THREE.Vector3(1, 1, -18),        // 3: Tyson (close, ring-level)
-        new THREE.Vector3(-3, 8, -28),       // 4: Conquistador (elevated, wide)
-        new THREE.Vector3(0, 10, -32),       // 5: World reuse (high, overview)
-        new THREE.Vector3(0, 3, -38),        // 6: Founders (eye-level, among them)
-        new THREE.Vector3(0, 1, -40),        // 7: Closing (still, centered, low)
+        new THREE.Vector3(0, 0, 20),         // 0: Hook (Void)
+        new THREE.Vector3(4, -1, 6),         // 1: Problem (Fracture)
+        new THREE.Vector3(1, 2, -4),         // 2: Insight (Dawn convergence)
+        new THREE.Vector3(2, 4, -12),        // 3: Solution (Production)
+        new THREE.Vector3(0, 10, -30),       // 4: Proof (World reuse, high overview)
+        new THREE.Vector3(0, 1, -40),        // 5: CTA (Closing)
     ], []);
 
     const lookTargets = useMemo(() => [
-        new THREE.Vector3(0, 0, 0),          // Void: straight ahead
-        new THREE.Vector3(-2, -2, -15),      // Fracture: into field
-        new THREE.Vector3(0, -2, -25),       // Production: down into stage
-        new THREE.Vector3(0, -1, -25),       // Tyson: at the figure
-        new THREE.Vector3(0, -3, -40),       // Conquistador: into distance
-        new THREE.Vector3(0, -3, -42),       // World reuse: terrain overview
-        new THREE.Vector3(0, -2, -42),       // Founders: at the figures
-        new THREE.Vector3(0, 0, -50),        // Closing: straight ahead, still
+        new THREE.Vector3(0, 0, 0),          // Hook: straight ahead
+        new THREE.Vector3(-2, -2, -15),      // Problem: into the chaos
+        new THREE.Vector3(0, 0, -20),        // Insight: into converging particles
+        new THREE.Vector3(0, -2, -25),       // Solution: down into the stage
+        new THREE.Vector3(0, -3, -42),       // Proof: terrain overview
+        new THREE.Vector3(0, 0, -50),        // CTA: straight ahead, still
     ], []);
 
     // Scroll breakpoints for each segment
-    const breakpoints = useMemo(() => [0, 0.15, 0.30, 0.42, 0.54, 0.66, 0.78, 0.92], []);
+    const breakpoints = useMemo(() => [0, 0.15, 0.30, 0.45, 0.65, 0.85], []);
 
     useFrame(({ clock, camera }, delta) => {
         if (startTime.current === null) {
@@ -898,26 +889,22 @@ export function CinematicScene() {
         <>
             <fog attach="fog" args={['#0a0806', 12, 80]} />
 
-            {/* Shared layers (all worlds) */}
+            {/* Shared layers (all phases) */}
             <AtmosphericBackground scrollRef={scrollRef} />
             <DustToArchitecture scrollRef={scrollRef} />
             <BokehOrbs scrollRef={scrollRef} />
             <AdaptiveLighting scrollRef={scrollRef} />
             <CameraController scrollRef={scrollRef} />
 
-            {/* Production elements */}
+            {/* Production elements (Solution phase) */}
             <ProductionFloor scrollRef={scrollRef} />
             <CameraPath scrollRef={scrollRef} />
             <Figures scrollRef={scrollRef} />
             <StageBounds scrollRef={scrollRef} />
 
-            {/* Real production worlds */}
-            <TysonWorld scrollRef={scrollRef} />
-            <ConquistadorWorld scrollRef={scrollRef} />
+            {/* Phase-specific worlds */}
+            <InsightWorld scrollRef={scrollRef} />
             <ProductionDemo scrollRef={scrollRef} />
-
-            {/* Final layer */}
-            <FoundersPresence scrollRef={scrollRef} />
             <ClosingWorld scrollRef={scrollRef} />
         </>
     );

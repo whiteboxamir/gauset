@@ -17,10 +17,10 @@ export async function submitWaitlist(formData: FormData) {
         // Simulate slight network delay for premium feel
         await new Promise(r => setTimeout(r, 600));
 
-        return { success: true, message: "Added to waitlist." };
+        return { success: true, message: "You're in. Early access secured." };
     } catch (error: any) {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-            return { success: true, message: "You're already on the list." };
+            return { success: true, message: "You're already in. We'll be in touch." };
         }
         return { success: false, message: "Please provide a valid email." };
     }

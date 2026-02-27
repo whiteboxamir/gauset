@@ -56,7 +56,7 @@ export function ClosingWorld({ scrollRef }: { scrollRef: React.MutableRefObject<
         const lerpRate = 1 - Math.exp(-4 * delta); // slower damping for the final calm
 
         // Generous fade-in with quintic easing — the world settles in gently
-        const fadeIn = smootherstep(0.90, 0.97, t);
+        const fadeIn = smootherstep(0.83, 0.92, t);
         const visibility = fadeIn;
 
         if (!groupRef.current) return;

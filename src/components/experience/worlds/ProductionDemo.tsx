@@ -94,8 +94,8 @@ export function ProductionDemo({ scrollRef }: { scrollRef: React.MutableRefObjec
         const lerpRate = 1 - Math.exp(-5 * delta);
 
         // Wider, quintic-eased fade windows
-        const fadeIn = smootherstep(0.64, 0.73, t);
-        const fadeOut = 1 - smootherstep(0.77, 0.83, t);
+        const fadeIn = smootherstep(0.63, 0.72, t);
+        const fadeOut = 1 - smootherstep(0.83, 0.88, t);
         const visibility = fadeIn * fadeOut;
 
         if (!groupRef.current) return;
