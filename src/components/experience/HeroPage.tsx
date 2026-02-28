@@ -97,27 +97,39 @@ export function HeroPage() {
                                                     initial={{ opacity: 0, y: 20 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ duration: 1.4, delay: 2.4, ease: [0.25, 0.1, 0.25, 1] }}
-                                                    className="max-w-xl md:max-w-2xl text-xl md:text-2xl lg:text-3xl tracking-tight text-neutral-300 mb-14 leading-snug"
+                                                    className="max-w-xl md:max-w-2xl text-xl md:text-2xl lg:text-3xl tracking-tight text-neutral-300 mb-10 leading-snug"
                                                     style={{ textShadow: '0 2px 20px rgba(0,0,0,0.8)' }}
                                                 >
                                                     The production layer for&nbsp;AI&nbsp;cinema.
                                                 </motion.p>
 
-                                                {/* Scroll hint */}
+                                                {/* Primary CTA — the main event */}
                                                 <motion.div
+                                                    initial={{ opacity: 0, y: 15 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 1.0, delay: 3.0, ease: [0.25, 0.1, 0.25, 1] }}
+                                                    className="w-full max-w-sm pointer-events-auto"
+                                                >
+                                                    <WaitlistForm
+                                                        size="large"
+                                                        placeholder="you@yourstudio.com"
+                                                        buttonText="Enter early"
+                                                        onSuccess={handleFormSuccess}
+                                                    />
+                                                </motion.div>
+
+                                                <motion.p
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
-                                                    transition={{ duration: 1.2, delay: 3.5 }}
-                                                    className="mt-8"
+                                                    transition={{ duration: 0.8, delay: 3.6 }}
+                                                    className="mt-5 text-[11px] uppercase tracking-[0.3em] font-medium"
+                                                    style={{
+                                                        color: 'rgba(100, 200, 220, 0.45)',
+                                                        textShadow: '0 1px 12px rgba(13,59,79,0.4)',
+                                                    }}
                                                 >
-                                                    <motion.div
-                                                        animate={{ y: [0, 6, 0] }}
-                                                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                                                        className="w-5 h-8 rounded-full border border-white/15 flex items-start justify-center p-1.5"
-                                                    >
-                                                        <motion.div className="w-1 h-1.5 rounded-full bg-white/30" />
-                                                    </motion.div>
-                                                </motion.div>
+                                                    Private access · Rolling invites
+                                                </motion.p>
                                             </div>
                                         )}
                                     </AnimatePresence>
@@ -275,58 +287,29 @@ export function HeroPage() {
                                 {/* ═══ TRANSITION ═══ */}
                                 <div className="h-[15vh]" />
 
-                                {/* ═══ PHASE 6: CTA — The singular early access moment ═══ */}
-                                <div id="waitlist" className="h-screen flex flex-col items-center justify-center relative">
-                                    {/* Atmospheric gradient behind the form */}
+                                {/* ═══ PHASE 6: CLOSING — Cinematic sign-off ═══ */}
+                                <div className="h-screen flex flex-col items-center justify-center relative">
+                                    {/* Atmospheric gradient */}
                                     <div
                                         className="absolute inset-0 pointer-events-none"
                                         style={{
-                                            background: 'radial-gradient(ellipse 80% 60% at 50% 55%, rgba(13,59,79,0.2) 0%, rgba(26,39,68,0.1) 40%, transparent 70%)',
-                                        }}
-                                    />
-
-                                    {/* Breathing glow */}
-                                    <div
-                                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] pointer-events-none"
-                                        style={{
-                                            background: 'radial-gradient(ellipse, rgba(13,59,79,0.15) 0%, rgba(212,160,74,0.04) 40%, transparent 70%)',
-                                            animation: 'glow-pulse 6s ease-in-out infinite',
+                                            background: 'radial-gradient(ellipse 80% 60% at 50% 55%, rgba(13,59,79,0.15) 0%, rgba(26,39,68,0.08) 40%, transparent 70%)',
                                         }}
                                     />
 
                                     <div className="relative z-10 flex flex-col items-center text-center max-w-2xl px-6">
                                         <p
-                                            className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.04em] leading-[1.1] mb-4"
-                                            style={{
-                                                textShadow: '0 4px 30px rgba(0,0,0,0.8)',
-                                                background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 100%)',
-                                                WebkitBackgroundClip: 'text',
-                                                WebkitTextFillColor: 'transparent',
-                                            }}
+                                            className="text-5xl sm:text-6xl md:text-7xl font-medium tracking-[-0.04em] text-white/90 mb-3"
+                                            style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
                                         >
-                                            The world doesn&apos;t
-                                            <br />
-                                            reset anymore.
+                                            Gauset
                                         </p>
-
                                         <p
-                                            className="text-[11px] uppercase tracking-[0.3em] font-medium mb-10"
-                                            style={{
-                                                color: 'rgba(100, 200, 220, 0.5)',
-                                                textShadow: '0 1px 12px rgba(13,59,79,0.4)',
-                                            }}
+                                            className="text-base sm:text-lg tracking-[0.08em] text-white/30 font-light"
+                                            style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                         >
-                                            Private access · Rolling invites
+                                            The world doesn&apos;t reset anymore.
                                         </p>
-
-                                        <div className="w-full max-w-sm pointer-events-auto mb-6">
-                                            <WaitlistForm
-                                                size="large"
-                                                placeholder="you@yourstudio.com"
-                                                buttonText="Enter early"
-                                                onSuccess={handleFormSuccess}
-                                            />
-                                        </div>
                                     </div>
 
                                     {/* Footer */}
