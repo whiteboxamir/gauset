@@ -35,10 +35,14 @@ export function HeroPage() {
         setSubmitted(true);
     }, []);
 
+    const handleOverlayClose = useCallback(() => {
+        setSubmitted(false);
+    }, []);
+
     return (
-        <div className="fixed inset-0 w-screen h-screen bg-black">
+        <div className="fixed inset-0 w-screen h-screen bg-black overflow-hidden">
             {/* Cinematic success overlay — full takeover on submit */}
-            <SuccessOverlay show={submitted} />
+            <SuccessOverlay show={submitted} onClose={handleOverlayClose} />
 
             <Canvas
                 camera={{ fov: 50, near: 0.1, far: 200 }}
@@ -58,7 +62,7 @@ export function HeroPage() {
                 <fog attach="fog" args={['#050510', 30, 120]} />
 
                 <Suspense fallback={null}>
-                    <ScrollControls pages={6} damping={0.12}>
+                    <ScrollControls pages={8.6} damping={0.12}>
                         <WorldRenderer />
 
                         <Scroll html style={{ width: '100%' }}>
@@ -125,8 +129,11 @@ export function HeroPage() {
 
 
 
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '60vh' }} />
+
                                 {/* ═══ PHASE 2: PROBLEM — AI video breaks at production ═══ */}
-                                <div className="py-16 flex items-center relative">
+                                <div className="h-screen flex items-center relative">
                                     <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                                         <div className="md:ml-auto md:max-w-2xl space-y-8">
                                             <p
@@ -159,8 +166,11 @@ export function HeroPage() {
 
 
 
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '60vh' }} />
+
                                 {/* ═══ PHASE 3: SOLUTION — Persistent worlds ═══ */}
-                                <div className="py-16 flex items-center relative">
+                                <div className="h-screen flex items-center relative">
                                     <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                                         <div className="md:max-w-2xl space-y-8">
                                             <p
@@ -199,8 +209,11 @@ export function HeroPage() {
 
 
 
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '60vh' }} />
+
                                 {/* ═══ PHASE 4: OUTCOME — Same world, different shots ═══ */}
-                                <div className="py-16 flex flex-col items-center relative">
+                                <div className="h-screen flex flex-col items-center justify-center relative">
                                     <div className="flex flex-col items-center justify-center">
                                         <div className="max-w-3xl px-6 text-center space-y-6">
                                             <p
@@ -241,8 +254,11 @@ export function HeroPage() {
 
 
 
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '60vh' }} />
+
                                 {/* ═══ PHASE 5: BRIDGE — The world doesn't reset ═══ */}
-                                <div className="py-16 flex items-center justify-center relative">
+                                <div className="h-screen flex items-center justify-center relative">
                                     <div className="max-w-3xl px-6 text-center space-y-4">
                                         <p
                                             className="text-2xl sm:text-3xl md:text-4xl font-medium tracking-tighter text-white/60 leading-tight"
@@ -260,6 +276,9 @@ export function HeroPage() {
                                 </div>
 
 
+
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '20vh' }} />
 
                                 {/* ═══ PHASE 6: CLOSING — Conversion CTA ═══ */}
                                 <div className="h-screen flex flex-col items-center justify-center relative">
@@ -341,8 +360,8 @@ export function HeroPage() {
 function HeroWord({ word, delay, isLast = false }: { word: string; delay: number; isLast?: boolean }) {
     return (
         <motion.span
-            initial={{ opacity: 0, y: 40, filter: 'blur(8px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, delay, ease: [0.22, 1, 0.36, 1] }}
             className={`inline-block text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-medium bg-clip-text text-transparent bg-gradient-to-b from-white via-white/90 to-white/50 ${isLast ? '' : 'mr-4 md:mr-6'}`}
         >
