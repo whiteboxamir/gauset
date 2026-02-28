@@ -4,7 +4,7 @@ import { WaitlistForm } from '@/components/ui/WaitlistForm';
 
 export function HeroContent() {
     return (
-        <div className="h-[100vh] flex flex-col items-center justify-center px-6 text-center relative">
+        <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative py-16">
             {/* Navbar */}
             <nav className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 md:px-10 py-5">
                 <div className="text-white font-bold tracking-wider text-sm">GAUSET</div>

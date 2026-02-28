@@ -96,28 +96,33 @@ export function DirectorOverlay() {
             {/* ── Bottom-left: REC + metadata ── */}
             <div
                 className="absolute"
-                style={{ bottom: '36px', left: '40px', ...mono, fontSize: '11px', lineHeight: '2', color: 'rgba(255, 255, 255, 0.65)' }}
+                style={{ bottom: '36px', left: '40px', ...mono, fontSize: '11px', lineHeight: '2', color: 'rgba(255, 255, 255, 0.80)' }}
             >
                 <div className="flex items-center gap-2 mb-1">
                     <div
-                        className="rounded-full"
+                        className="w-2 h-2 bg-red-500 rounded-full animate-pulse"
                         style={{
-                            width: '7px',
-                            height: '7px',
-                            backgroundColor: '#ef4444',
                             boxShadow: '0 0 10px rgba(239,68,68,0.8)',
-                            animation: 'rec-pulse 1.8s ease-in-out infinite',
                         }}
                     />
-                    <span style={{ color: 'rgba(255, 255, 255, 0.8)', fontWeight: 500 }}>REC</span>
-                    <span style={{ color: 'rgba(255, 255, 255, 0.35)', margin: '0 2px' }}>·</span>
-                    <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Director View</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.95)', fontWeight: 500 }}>REC</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.4)', margin: '0 2px' }}>·</span>
+                    <span style={{
+                        display: "inline-block",
+                        width: "6px",
+                        height: "6px",
+                        background: "red",
+                        borderRadius: "50%",
+                        marginRight: "6px",
+                        animation: "pulse 1.5s infinite"
+                    }} />
+                    <span style={{ color: 'rgba(255, 255, 255, 0.80)' }}>DIRECTOR VIEW</span>
                 </div>
                 <div
                     style={{
                         opacity: glitch ? 0.4 : visible ? 1 : 0,
                         transition: glitch ? 'opacity 0.08s ease-out' : 'opacity 0.6s ease-in-out',
-                        color: 'rgba(255, 255, 255, 0.6)',
+                        color: 'rgba(255, 255, 255, 0.80)',
                         filter: glitch ? 'brightness(1.6)' : 'none',
                     }}
                 >
@@ -137,15 +142,15 @@ export function DirectorOverlay() {
                     lineHeight: '2',
                 }}
             >
-                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.5)' }}>TC</div>
-                <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{timecode}</div>
-                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.45)' }}>24 FPS · 4K</div>
+                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)' }}>TC</div>
+                <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{timecode}</div>
+                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.55)' }}>24 FPS · 4K</div>
             </div>
 
             {/* ── Top-left: Format ── */}
             <div
                 className="absolute"
-                style={{ top: '72px', left: '40px', ...mono, fontSize: '10px', color: 'rgba(255, 255, 255, 0.55)', animation: 'overlay-drift 6s ease-in-out infinite' }}
+                style={{ top: '72px', left: '40px', ...mono, fontSize: '10px', color: 'rgba(255, 255, 255, 0.65)', animation: 'overlay-drift 6s ease-in-out infinite' }}
             >
                 2.39:1 · ANAMORPHIC
             </div>
@@ -153,7 +158,7 @@ export function DirectorOverlay() {
             {/* ── Top-right: Color ── */}
             <div
                 className="absolute"
-                style={{ top: '72px', right: '40px', ...mono, fontSize: '10px', color: 'rgba(255, 255, 255, 0.55)', textAlign: 'right', animation: 'overlay-drift 6s ease-in-out infinite 3s' }}
+                style={{ top: '72px', right: '40px', ...mono, fontSize: '10px', color: 'rgba(255, 255, 255, 0.65)', textAlign: 'right', animation: 'overlay-drift 6s ease-in-out infinite 3s' }}
             >
                 ACES · LOG
             </div>

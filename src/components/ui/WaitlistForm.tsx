@@ -76,7 +76,7 @@ export function WaitlistForm({
                         onSubmit={handleSubmit}
                         initial={false}
                         exit={{ opacity: 0, scale: 0.95, filter: 'blur(6px)', transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] } }}
-                        className="relative group flex w-full"
+                        className="relative group flex w-full bg-black/40 backdrop-blur-md border border-white/20 rounded-full"
                     >
                         {/* Animated glow ring behind input */}
                         <div
@@ -102,11 +102,11 @@ export function WaitlistForm({
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             className={cn(
-                                'relative z-[1] w-full bg-white/[0.03] border text-white rounded-full',
-                                'placeholder:text-neutral-600 focus:outline-none transition-all duration-500',
+                                'relative z-[1] w-full bg-black/40 backdrop-blur-md border text-white rounded-full',
+                                'placeholder:text-neutral-400 focus:outline-none transition-all duration-500',
                                 isFocused
-                                    ? 'border-[rgba(100,200,220,0.3)] shadow-[0_0_20px_rgba(13,59,79,0.2)]'
-                                    : 'border-white/[0.08] group-hover:border-white/[0.15] group-hover:bg-white/[0.04]',
+                                    ? 'border-[rgba(100,200,220,0.4)] shadow-[0_0_20px_rgba(13,59,79,0.3)]'
+                                    : 'border-white/20 group-hover:border-white/30 group-hover:bg-black/50',
                                 isLarge ? 'px-8 py-5 text-lg' : 'px-6 py-4 text-base',
                                 showTextButton ? 'pr-36' : ''
                             )}
@@ -118,7 +118,7 @@ export function WaitlistForm({
                             className={cn(
                                 'absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center z-[2]',
                                 'transition-all duration-500 disabled:cursor-not-allowed',
-                                'active:scale-95 hover:scale-[1.03] hover:brightness-110',
+                                'active:scale-95 hover:scale-[1.05] hover:brightness-110',
                                 status === 'loading'
                                     ? 'bg-white/10 text-white/60'
                                     : showTextButton
@@ -129,7 +129,7 @@ export function WaitlistForm({
                                     : isLarge ? 'w-12 h-12' : 'w-10 h-10'
                             )}
                             style={{
-                                animation: status !== 'loading' ? 'cta-glow-pulse 4s ease-in-out infinite' : 'none',
+                                animation: status !== 'loading' ? 'cta-glow-pulse 4s ease-in-out infinite, pulse-scale 2.5s ease-in-out infinite' : 'none',
                             }}
                         >
                             {status === 'loading' ? (

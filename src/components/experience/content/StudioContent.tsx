@@ -4,7 +4,7 @@ import Image from 'next/image';
 
 export function StudioContent() {
     return (
-        <div className="h-[100vh] flex flex-col justify-center px-6 md:px-16 relative">
+        <div className="py-16 flex flex-col justify-center px-6 md:px-16 relative">
             <div className="max-w-6xl mx-auto w-full">
                 {/* Pipeline header */}
                 <h2 className="text-5xl md:text-7xl font-medium tracking-tighter mb-16 md:mb-24 text-center md:text-left flex flex-wrap gap-4 items-center text-balance">

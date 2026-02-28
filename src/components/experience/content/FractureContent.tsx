@@ -2,7 +2,7 @@
 
 export function FractureContent() {
     return (
-        <div className="h-[100vh] flex items-center px-6 md:px-16 relative">
+        <div className="py-16 flex items-center px-6 md:px-16 relative">
             <div className="max-w-6xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-8">
                 <div className="md:col-span-4 hidden md:block" />
                 <div className="md:col-span-8 relative">

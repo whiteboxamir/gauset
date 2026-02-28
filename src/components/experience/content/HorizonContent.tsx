@@ -5,7 +5,7 @@ import { WaitlistForm } from '@/components/ui/WaitlistForm';
 
 export function HorizonContent() {
     return (
-        <div className="h-[100vh] flex flex-col justify-between px-6 md:px-16 relative pt-16 pb-8">
+        <div className="py-16 flex flex-col justify-between px-6 md:px-16 relative">
             {/* Founders section */}
             <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-center">
                 <h2 className="text-4xl md:text-5xl font-medium tracking-tighter mb-12 text-center text-white text-balance">

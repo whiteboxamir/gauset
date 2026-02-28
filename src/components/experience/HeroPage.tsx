@@ -43,7 +43,7 @@ export function HeroPage() {
     }, []);
 
     return (
-        <div className="fixed inset-0 w-screen h-screen bg-black overflow-hidden">
+        <div className="fixed inset-0 w-screen h-screen bg-black">
             {/* Cinematic success overlay — full takeover on submit */}
             <SuccessOverlay show={submitted} onClose={handleOverlayClose} />
 
@@ -85,6 +85,8 @@ export function HeroPage() {
                                             zIndex: 50,
                                         }}
                                     />
+                                    {/* Extra hard-edge killer */}
+                                    <div className="absolute bottom-0 left-0 w-full h-32 pointer-events-none bg-gradient-to-b from-transparent to-black/60" style={{ zIndex: 51 }} />
 
                                     <nav className="fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-10 py-5 pointer-events-auto z-50">
                                         <div className="text-white/90 font-bold tracking-[0.15em] text-xs uppercase">Gauset</div>
@@ -118,12 +120,16 @@ export function HeroPage() {
                                                     transition={{ duration: 1.0, delay: 3.0, ease: [0.25, 0.1, 0.25, 1] }}
                                                     className="w-full max-w-sm pointer-events-auto"
                                                 >
-                                                    <WaitlistForm
-                                                        size="large"
-                                                        placeholder="you@yourstudio.com"
-                                                        buttonText="Enter early"
-                                                        onSuccess={handleFormSuccess}
-                                                    />
+                                                    <div style={{
+                                                        animation: "pulse 2.5s ease-in-out infinite"
+                                                    }}>
+                                                        <WaitlistForm
+                                                            size="large"
+                                                            placeholder="you@yourstudio.com"
+                                                            buttonText="Enter early"
+                                                            onSuccess={handleFormSuccess}
+                                                        />
+                                                    </div>
                                                 </motion.div>
 
                                                 <motion.p
@@ -144,6 +150,17 @@ export function HeroPage() {
 
                                     {/* Director UI overlay — film-monitor controls */}
                                     <DirectorOverlay />
+
+                                    {/* Bottom seam killer — extra gradient fade */}
+                                    <div style={{
+                                        position: "absolute",
+                                        bottom: 0,
+                                        left: 0,
+                                        width: "100%",
+                                        height: "120px",
+                                        pointerEvents: "none",
+                                        background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.6))"
+                                    }} />
                                 </div>
 
 

@@ -150,6 +150,37 @@ export function HeroBackground() {
                     animation: 'grain 8s steps(10) infinite',
                 }}
             />
+
+            {/* Live production: subtle exposure shift — warm light pulse */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    background: 'radial-gradient(ellipse 80% 70% at 45% 40%, rgba(255,230,180,0.12) 0%, transparent 65%)',
+                    animation: 'exposure-shift 8s ease-in-out infinite',
+                    willChange: 'opacity',
+                }}
+            />
+
+            {/* Live production: gentle focus pulse */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    background: 'transparent',
+                    animation: 'focus-pulse 12s ease-in-out infinite',
+                    willChange: 'filter, opacity',
+                }}
+            />
+
+            {/* Live production: slow cinematic scanline pass */}
+            <div
+                className="absolute inset-x-0 pointer-events-none"
+                style={{
+                    height: '2px',
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.06) 70%, transparent 100%)',
+                    animation: 'scanline-pass 18s linear infinite',
+                    willChange: 'transform, opacity',
+                }}
+            />
         </div>
     );
 }

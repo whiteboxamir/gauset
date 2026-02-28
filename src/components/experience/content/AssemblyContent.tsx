@@ -4,7 +4,7 @@ import { EngineSimulation } from '@/components/ui/EngineSimulation';
 
 export function AssemblyContent() {
     return (
-        <div className="h-[100vh] flex flex-col justify-center px-6 md:px-16 relative">
+        <div className="py-16 flex flex-col justify-center px-6 md:px-16 relative">
             <div className="max-w-6xl mx-auto w-full">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-16 items-start mb-16">
                     <div className="md:col-span-8 relative">
