@@ -29,15 +29,27 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-@keyframes glow-pulse {
+@keyframes rec-pulse {
 
   0%,
   100% {
-    opacity: 0.4;
+    opacity: 0.35;
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.25);
+  }
+
+  40% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.3);
   }
 
   50% {
-    opacity: 0.7;
+    opacity: 0.9;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+  }
+
+  60% {
+    opacity: 1;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.75);
   }
 }
 
@@ -109,22 +121,100 @@ body {
 @keyframes hero-drift {
 
   0% {
-    transform: scale(1.05) translate(0%, 0%);
-  }
-
-  25% {
-    transform: scale(1.08) translate(-0.5%, -0.3%);
+    transform: scale(1.06) translate(0px, 0px);
   }
 
   50% {
-    transform: scale(1.06) translate(0.3%, 0.2%);
-  }
-
-  75% {
-    transform: scale(1.09) translate(-0.2%, 0.4%);
+    transform: scale(1.12) translate(2px, 3px);
   }
 
   100% {
-    transform: scale(1.05) translate(0%, 0%);
+    transform: scale(1.06) translate(0px, 0px);
   }
+}
+
+/* CTA ambient pulsing glow */
+@keyframes cta-glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(100, 200, 220, 0.08), 0 0 30px rgba(13, 59, 79, 0.06);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(100, 200, 220, 0.18), 0 0 50px rgba(13, 59, 79, 0.12);
+  }
+}
+
+/* Overlay micro-tension drift */
+@keyframes overlay-drift {
+
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Cinematic grain noise */
+@keyframes grain {
+
+  0%,
+  100% {
+    background-position: 0 0;
+  }
+
+  10% {
+    background-position: -5% -10%;
+  }
+
+  20% {
+    background-position: -15% 5%;
+  }
+
+  30% {
+    background-position: 7% -25%;
+  }
+
+  40% {
+    background-position: -5% 25%;
+  }
+
+  50% {
+    background-position: -15% 10%;
+  }
+
+  60% {
+    background-position: 15% 0%;
+  }
+
+  70% {
+    background-position: 0% 15%;
+  }
+
+  80% {
+    background-position: 3% 35%;
+  }
+
+  90% {
+    background-position: -10% 10%;
+  }
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
 }

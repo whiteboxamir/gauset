@@ -72,9 +72,19 @@ export function HeroPage() {
                             <div className="w-screen pointer-events-none">
 
                                 {/* ═══ PHASE 1: HOOK — Pure cinematic statement ═══ */}
-                                <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative">
+                                <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative overflow-hidden" style={{ marginBottom: '-2px', paddingBottom: '2px' }}>
                                     {/* Cinematic background — crossfading environment images */}
                                     <HeroBackground />
+
+                                    {/* Bottom-edge fade — seamless transition into next section */}
+                                    <div
+                                        className="absolute inset-x-0 bottom-0 pointer-events-none"
+                                        style={{
+                                            height: '18%',
+                                            background: 'linear-gradient(to bottom, transparent 0%, #050510 100%)',
+                                            zIndex: 50,
+                                        }}
+                                    />
 
                                     <nav className="fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-10 py-5 pointer-events-auto z-50">
                                         <div className="text-white/90 font-bold tracking-[0.15em] text-xs uppercase">Gauset</div>
@@ -139,7 +149,7 @@ export function HeroPage() {
 
 
                                 {/* Spacer for breathing room */}
-                                <div style={{ height: '60vh' }} />
+                                <div style={{ height: '60vh', position: 'relative', zIndex: 1 }} />
 
                                 {/* ═══ PHASE 2: PROBLEM — AI video breaks at production ═══ */}
                                 <div className="h-screen flex items-center relative">
@@ -369,10 +379,14 @@ export function HeroPage() {
 function HeroWord({ word, delay, isLast = false }: { word: string; delay: number; isLast?: boolean }) {
     return (
         <motion.span
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 40, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: 1.2, delay, ease: [0.22, 1, 0.36, 1] }}
             className={`inline-block text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-medium bg-clip-text text-transparent bg-gradient-to-b from-white via-white/90 to-white/50 ${isLast ? '' : 'mr-4 md:mr-6'}`}
+            style={{
+                textShadow: '0 2px 30px rgba(0,0,0,0.9), 0 0 60px rgba(0,0,0,0.5)',
+                WebkitTextStroke: '0.3px rgba(255,255,255,0.08)',
+            }}
         >
             {word}
         </motion.span>

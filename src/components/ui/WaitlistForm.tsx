@@ -118,7 +118,7 @@ export function WaitlistForm({
                             className={cn(
                                 'absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center z-[2]',
                                 'transition-all duration-500 disabled:cursor-not-allowed',
-                                'active:scale-95',
+                                'active:scale-95 hover:scale-[1.03] hover:brightness-110',
                                 status === 'loading'
                                     ? 'bg-white/10 text-white/60'
                                     : showTextButton
@@ -128,6 +128,9 @@ export function WaitlistForm({
                                     ? 'px-6 h-12 text-sm font-medium tracking-wide'
                                     : isLarge ? 'w-12 h-12' : 'w-10 h-10'
                             )}
+                            style={{
+                                animation: status !== 'loading' ? 'cta-glow-pulse 4s ease-in-out infinite' : 'none',
+                            }}
                         >
                             {status === 'loading' ? (
                                 <svg className={cn('animate-spin', isLarge ? 'w-5 h-5' : 'w-4 h-4')} viewBox="0 0 24 24" fill="none">
