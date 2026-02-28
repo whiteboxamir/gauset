@@ -9,16 +9,17 @@ import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorldRenderer } from './WorldRenderer';
 import { WaitlistForm } from '@/components/ui/WaitlistForm';
+import { SuccessOverlay } from '@/components/ui/SuccessOverlay';
 
 /*
-  SIX-PHASE CONVERSION FUNNEL — Cinematic Product Experience
+  SIX-PHASE CONVERSION FUNNEL — clear → powerful → inevitable → signup
 
-  Phase 1 (0%–15%):   HOOK — "Build worlds. Not clips." (pure statement)
-  Phase 2 (15%–30%):  PROBLEM — AI video is broken (FRACTURE world)
-  Phase 3 (30%–50%):  SOLUTION — Gauset is the production layer (PRODUCTION world)
-  Phase 4 (50%–70%):  PROOF — Same world, infinite shots (PERSISTENT SHOT world)
-  Phase 5 (70%–85%):  HORIZON — The future of production
-  Phase 6 (85%–100%): CTA — The singular early access moment
+  Phase 1 (0%–15%):   HOOK — "Build worlds. Not clips."
+  Phase 2 (15%–30%):  PROBLEM — "AI video breaks at production."
+  Phase 3 (30%–50%):  SOLUTION — "Persistent worlds."
+  Phase 4 (50%–70%):  OUTCOME — "Same world. Different shots."
+  Phase 5 (70%–80%):  BRIDGE — "The world doesn't reset anymore."
+  Phase 6 (80%–100%): CTA — Gauset + signup
 */
 
 export function HeroPage() {
@@ -35,22 +36,9 @@ export function HeroPage() {
     }, []);
 
     return (
-        <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-black">
-            {/* Cinematic submission overlay — dims the world on success */}
-            <AnimatePresence>
-                {submitted && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-                        className="fixed inset-0 z-[100] pointer-events-none"
-                        style={{
-                            background: 'radial-gradient(ellipse at 50% 60%, rgba(13,59,79,0.25) 0%, rgba(10,22,40,0.5) 50%, rgba(0,0,0,0.7) 100%)',
-                            backdropFilter: 'blur(4px)',
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+        <div className="fixed inset-0 w-screen h-screen bg-black">
+            {/* Cinematic success overlay — full takeover on submit */}
+            <SuccessOverlay show={submitted} />
 
             <Canvas
                 camera={{ fov: 50, near: 0.1, far: 200 }}
@@ -70,7 +58,7 @@ export function HeroPage() {
                 <fog attach="fog" args={['#050510', 30, 120]} />
 
                 <Suspense fallback={null}>
-                    <ScrollControls pages={7} damping={0.12}>
+                    <ScrollControls pages={6} damping={0.12}>
                         <WorldRenderer />
 
                         <Scroll html style={{ width: '100%' }}>
@@ -135,46 +123,44 @@ export function HeroPage() {
                                     </AnimatePresence>
                                 </div>
 
-                                {/* ═══ TRANSITION ═══ */}
-                                <div className="h-[25vh]" />
 
-                                {/* ═══ PHASE 2: PROBLEM — AI video is broken ═══ */}
-                                <div className="h-screen flex items-center relative">
+
+                                {/* ═══ PHASE 2: PROBLEM — AI video breaks at production ═══ */}
+                                <div className="py-16 flex items-center relative">
                                     <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                                         <div className="md:ml-auto md:max-w-2xl space-y-8">
                                             <p
                                                 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tighter leading-[1.05] text-white/90"
                                                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
                                             >
-                                                AI video is
+                                                AI video breaks
                                                 <br />
-                                                a dead end.
+                                                at production.
                                             </p>
                                             <div className="space-y-4">
                                                 <p
                                                     className="text-base md:text-lg text-neutral-400 tracking-tight leading-relaxed max-w-lg"
                                                     style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                                 >
-                                                    Every generation is a one-shot. Nothing persists between clips.
-                                                    Characters change faces. Environments reset. Lighting is random.
+                                                    Nothing persists. Nothing matches.
+                                                    Characters change faces. Environments reset. Lighting never carries over.
                                                 </p>
                                                 <p
                                                     className="text-base md:text-lg text-neutral-500 tracking-tight leading-relaxed max-w-lg"
                                                     style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                                 >
-                                                    You can&apos;t cut a scene from isolated clips. You can&apos;t direct randomness.
-                                                    Current AI video tools are built for demos — not for filmmaking.
+                                                    You can&apos;t build a film from isolated clips.
+                                                    Current tools are built for demos — not for production.
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION ═══ */}
-                                <div className="h-[25vh]" />
 
-                                {/* ═══ PHASE 3: SOLUTION — Gauset is the layer ═══ */}
-                                <div className="h-screen flex items-center relative">
+
+                                {/* ═══ PHASE 3: SOLUTION — Persistent worlds ═══ */}
+                                <div className="py-16 flex items-center relative">
                                     <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                                         <div className="md:max-w-2xl space-y-8">
                                             <p
@@ -190,53 +176,46 @@ export function HeroPage() {
                                                 className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tighter leading-[1.05] text-white/90"
                                                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
                                             >
-                                                A world you can
-                                                <br />
-                                                work inside.
+                                                Persistent worlds.
                                             </p>
                                             <div className="space-y-4">
                                                 <p
                                                     className="text-base md:text-lg text-neutral-400 tracking-tight leading-relaxed max-w-lg"
                                                     style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                                 >
-                                                    Build a world once. Direct inside it forever.
-                                                    Persistent environments, controllable cameras, scene-level continuity.
+                                                    Build a world once — it stays.
+                                                    Same lighting. Same environment. Full continuity across every shot.
                                                 </p>
                                                 <p
                                                     className="text-base md:text-lg text-neutral-500 tracking-tight leading-relaxed max-w-lg"
                                                     style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                                 >
-                                                    Gauset doesn&apos;t generate clips — it gives you a world you can work in.
-                                                    Place cameras. Move characters. Shoot, re-shoot, iterate.
-                                                    Like a real production — but the world is AI-generated.
+                                                    Place cameras. Direct characters. Reshoot without rebuilding.
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION ═══ */}
-                                <div className="h-[25vh]" />
 
-                                {/* ═══ PHASE 4: PROOF — One world, infinite shots ═══ */}
-                                <div className="h-[140vh] flex flex-col items-center relative">
-                                    <div className="sticky top-0 h-screen flex flex-col items-center justify-center">
+
+                                {/* ═══ PHASE 4: OUTCOME — Same world, different shots ═══ */}
+                                <div className="py-16 flex flex-col items-center relative">
+                                    <div className="flex flex-col items-center justify-center">
                                         <div className="max-w-3xl px-6 text-center space-y-6">
                                             <p
                                                 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter text-white/80 leading-tight"
                                                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
                                             >
-                                                One world.
+                                                Same world.
                                                 <br />
-                                                Infinite shots.
+                                                Different shots.
                                             </p>
                                             <p
                                                 className="text-sm md:text-base text-neutral-500 tracking-tight leading-relaxed max-w-md mx-auto"
                                                 style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                             >
-                                                Same environment. Same lighting. Same geometry.
-                                                <br />
-                                                Only the camera changes.
+                                                Production-level control over every angle.
                                             </p>
 
                                             {/* Shot type labels */}
@@ -260,34 +239,29 @@ export function HeroPage() {
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION ═══ */}
-                                <div className="h-[25vh]" />
 
-                                {/* ═══ PHASE 5: HORIZON — The future ═══ */}
-                                <div className="h-screen flex items-center justify-center relative">
-                                    <div className="max-w-4xl px-6 text-center space-y-8">
+
+                                {/* ═══ PHASE 5: BRIDGE — The world doesn't reset ═══ */}
+                                <div className="py-16 flex items-center justify-center relative">
+                                    <div className="max-w-3xl px-6 text-center space-y-4">
                                         <p
-                                            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tighter text-white/85 leading-[1.05]"
+                                            className="text-2xl sm:text-3xl md:text-4xl font-medium tracking-tighter text-white/60 leading-tight"
                                             style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
                                         >
-                                            The future of film
-                                            <br />
-                                            is already here.
+                                            The world doesn&apos;t reset anymore.
                                         </p>
                                         <p
-                                            className="text-base md:text-xl text-neutral-400 tracking-tight leading-relaxed max-w-xl mx-auto"
+                                            className="text-sm md:text-base text-neutral-500 tracking-tight leading-relaxed max-w-md mx-auto"
                                             style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                         >
-                                            AI-generated worlds you can direct, shoot in, and return to.
-                                            The entire production pipeline — reimagined.
+                                            Every shot lives in the same world. That changes everything.
                                         </p>
                                     </div>
                                 </div>
 
-                                {/* ═══ TRANSITION ═══ */}
-                                <div className="h-[15vh]" />
 
-                                {/* ═══ PHASE 6: CLOSING — Cinematic sign-off ═══ */}
+
+                                {/* ═══ PHASE 6: CLOSING — Conversion CTA ═══ */}
                                 <div className="h-screen flex flex-col items-center justify-center relative">
                                     {/* Atmospheric gradient */}
                                     <div
@@ -305,10 +279,30 @@ export function HeroPage() {
                                             Gauset
                                         </p>
                                         <p
-                                            className="text-base sm:text-lg tracking-[0.08em] text-white/30 font-light"
+                                            className="text-base sm:text-lg tracking-tight text-neutral-400 font-light mb-10"
                                             style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
                                         >
-                                            The world doesn&apos;t reset anymore.
+                                            The production layer for AI cinema.
+                                        </p>
+
+                                        {/* Bottom CTA */}
+                                        <div className="w-full max-w-sm pointer-events-auto">
+                                            <WaitlistForm
+                                                size="large"
+                                                placeholder="you@yourstudio.com"
+                                                buttonText="Request access"
+                                                onSuccess={handleFormSuccess}
+                                            />
+                                        </div>
+
+                                        <p
+                                            className="mt-5 text-[11px] uppercase tracking-[0.3em] font-medium"
+                                            style={{
+                                                color: 'rgba(100, 200, 220, 0.35)',
+                                                textShadow: '0 1px 12px rgba(13,59,79,0.4)',
+                                            }}
+                                        >
+                                            Private access · Rolling invites
                                         </p>
                                     </div>
 
@@ -320,8 +314,7 @@ export function HeroPage() {
                                     </footer>
                                 </div>
 
-                                {/* Final breathing space */}
-                                <div className="h-[8vh]" />
+
                             </div>
                         </Scroll>
                     </ScrollControls>

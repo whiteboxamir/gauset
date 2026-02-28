@@ -155,54 +155,7 @@ export function WaitlistForm({
                             </div>
                         )}
                     </motion.form>
-                ) : (
-                    <motion.div
-                        key="success"
-                        initial={{ opacity: 0, scale: 0.9, filter: 'blur(8px)' }}
-                        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                        transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                        className="relative flex flex-col items-center justify-center text-center py-6"
-                    >
-                        {/* Radial glow behind text */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <motion.div
-                                initial={{ scale: 0.3, opacity: 0 }}
-                                animate={{ scale: 1.5, opacity: 1 }}
-                                transition={{ duration: 1.5, ease: 'easeOut' }}
-                                className="w-48 h-48 rounded-full"
-                                style={{
-                                    background: 'radial-gradient(circle, rgba(13,59,79,0.2) 0%, rgba(100,200,220,0.06) 50%, transparent 70%)',
-                                }}
-                            />
-                        </div>
-
-                        <motion.p
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.4 }}
-                            className={cn(
-                                'relative z-[1] font-medium tracking-tight',
-                                isLarge ? 'text-3xl' : 'text-2xl'
-                            )}
-                            style={{
-                                background: 'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(100,200,220,0.7) 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                            }}
-                        >
-                            You&apos;re in.
-                        </motion.p>
-
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.8, delay: 0.9 }}
-                            className="relative z-[1] text-sm text-neutral-500 tracking-wide mt-3"
-                        >
-                            We&apos;ll reach out before public release.
-                        </motion.p>
-                    </motion.div>
-                )}
+                ) : null}
             </AnimatePresence>
 
             {/* Error message */}
