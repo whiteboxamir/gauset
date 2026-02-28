@@ -9,14 +9,15 @@ export async function supabaseInsert(table: string, data: Record<string, unknown
             'apikey': SUPABASE_SERVICE_KEY,
             'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=minimal',
+            'Prefer': 'return=representation',
         },
         body: JSON.stringify(data),
     });
 
     if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({}));
-        return { error: errorBody };
+        // Supabase REST API returns JSON with code/message on error
+        const errorBody = await res.json().catch(() => ({ code: String(res.status), message: res.statusText }));
+        return { error: { code: errorBody.code || String(res.status), message: errorBody.message || res.statusText } };
     }
 
     return { error: null };
