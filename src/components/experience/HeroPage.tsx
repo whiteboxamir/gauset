@@ -328,8 +328,8 @@ export function HeroPage() {
                                     {/* Footer */}
                                     <footer className="absolute bottom-6 left-0 right-0 flex justify-center gap-8 text-xs text-neutral-600">
                                         <span>© {new Date().getFullYear()} Gnosika Inc.</span>
-                                        <a href="#" className="hover:text-neutral-400 transition-colors pointer-events-auto">Privacy</a>
-                                        <a href="#" className="hover:text-neutral-400 transition-colors pointer-events-auto">Terms</a>
+                                        <a href="/privacy" className="hover:text-neutral-400 transition-colors pointer-events-auto">Privacy</a>
+                                        <a href="/terms" className="hover:text-neutral-400 transition-colors pointer-events-auto">Terms</a>
                                     </footer>
                                 </div>
 
