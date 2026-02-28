@@ -423,6 +423,8 @@ function HeroWord({ word, delay, isLast = false }: { word: string; delay: number
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
+                textShadow: '0 2px 30px rgba(0,0,0,0.9), 0 0 60px rgba(0,0,0,0.5)',
+                WebkitTextStroke: '0.3px rgba(255,255,255,0.08)',
             }}
         >
             {word}
