@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
     return (
-        <div className="min-h-screen bg-black text-[#ebebeb] px-6 py-20 md:px-16">
+        <div className="h-screen overflow-y-auto bg-black text-[#ebebeb] px-6 py-20 md:px-16">
             <div className="max-w-2xl mx-auto">
                 <a href="/" className="text-xs uppercase tracking-[0.3em] text-neutral-600 hover:text-neutral-400 transition-colors mb-16 inline-block">
                     ← Back
