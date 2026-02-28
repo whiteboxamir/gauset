@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorldRenderer } from './WorldRenderer';
 import { WaitlistForm } from '@/components/ui/WaitlistForm';
 import { SuccessOverlay } from '@/components/ui/SuccessOverlay';
+import { HeroBackground } from './HeroBackground';
+import { DirectorOverlay } from './DirectorOverlay';
 
 /*
   SIX-PHASE CONVERSION FUNNEL — clear → powerful → inevitable → signup
@@ -25,6 +27,7 @@ import { SuccessOverlay } from '@/components/ui/SuccessOverlay';
 export function HeroPage() {
     const [mounted, setMounted] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+
 
     useEffect(() => {
         const timer = setTimeout(() => setMounted(true), 600);
@@ -70,13 +73,16 @@ export function HeroPage() {
 
                                 {/* ═══ PHASE 1: HOOK — Pure cinematic statement ═══ */}
                                 <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative">
+                                    {/* Cinematic background — crossfading environment images */}
+                                    <HeroBackground />
+
                                     <nav className="fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-10 py-5 pointer-events-auto z-50">
                                         <div className="text-white/90 font-bold tracking-[0.15em] text-xs uppercase">Gauset</div>
                                     </nav>
 
                                     <AnimatePresence>
                                         {mounted && (
-                                            <div className="flex flex-col items-center text-center max-w-5xl">
+                                            <div className="flex flex-col items-center text-center max-w-5xl relative" style={{ zIndex: 10 }}>
                                                 <h1 className="mb-6 pb-2 leading-[0.92] tracking-[-0.04em]">
                                                     <HeroWord word="Build" delay={0} />
                                                     <HeroWord word="worlds." delay={0.4} />
@@ -125,6 +131,9 @@ export function HeroPage() {
                                             </div>
                                         )}
                                     </AnimatePresence>
+
+                                    {/* Director UI overlay — film-monitor controls */}
+                                    <DirectorOverlay />
                                 </div>
 
 
