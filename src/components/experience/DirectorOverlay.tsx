@@ -70,12 +70,10 @@ export function DirectorOverlay() {
             <div
                 className="absolute"
                 style={{
-                    top: '60px',
-                    left: '24px',
-                    right: '24px',
-                    bottom: '24px',
+                    inset: '60px 24px 24px 24px',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     borderRadius: '2px',
+                    boxSizing: 'border-box',
                 }}
             />
 

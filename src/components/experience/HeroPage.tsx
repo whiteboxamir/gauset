@@ -43,7 +43,7 @@ export function HeroPage() {
     }, []);
 
     return (
-        <div className="fixed inset-0 w-screen h-screen bg-black">
+        <div className="fixed inset-0 w-screen min-h-screen bg-black" style={{ overflow: 'hidden' }}>
             {/* Cinematic success overlay — full takeover on submit */}
             <SuccessOverlay show={submitted} onClose={handleOverlayClose} />
 
@@ -69,10 +69,10 @@ export function HeroPage() {
                         <WorldRenderer />
 
                         <Scroll html style={{ width: '100%' }}>
-                            <div className="w-screen pointer-events-none">
+                            <div className="w-screen pointer-events-none" style={{ overflowX: 'hidden' }}>
 
                                 {/* ═══ PHASE 1: HOOK — Pure cinematic statement ═══ */}
-                                <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative overflow-hidden" style={{ marginBottom: '-2px', paddingBottom: '2px' }}>
+                                <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative" style={{ marginBottom: '-2px', paddingBottom: '2px', minHeight: '100svh' }}>
                                     {/* Cinematic background — crossfading environment images */}
                                     <HeroBackground />
 
