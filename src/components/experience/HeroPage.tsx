@@ -118,7 +118,7 @@ export function HeroPage() {
                                                     initial={{ opacity: 0, y: 15 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ duration: 1.0, delay: 3.0, ease: [0.25, 0.1, 0.25, 1] }}
-                                                    className="w-full max-w-sm pointer-events-auto"
+                                                    className="w-full max-w-md pointer-events-auto"
                                                 >
                                                     <div style={{
                                                         animation: "pulse 2.5s ease-in-out infinite"
