@@ -76,7 +76,12 @@ export function WaitlistForm({
                         onSubmit={handleSubmit}
                         initial={false}
                         exit={{ opacity: 0, scale: 0.95, filter: 'blur(6px)', transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] } }}
-                        className="relative group flex w-full bg-black/40 backdrop-blur-md border border-white/20 rounded-full"
+                        className={cn(
+                            'relative group flex w-full bg-black/40 backdrop-blur-md border rounded-full transition-all duration-500',
+                            isFocused
+                                ? 'border-[rgba(100,200,220,0.4)] shadow-[0_0_20px_rgba(13,59,79,0.3)]'
+                                : 'border-white/20 hover:border-white/30 hover:bg-black/50'
+                        )}
                     >
                         {/* Animated glow ring behind input */}
                         <div
@@ -102,11 +107,9 @@ export function WaitlistForm({
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             className={cn(
-                                'relative z-[1] w-full bg-black/40 backdrop-blur-md border text-white rounded-full',
+                                'relative z-[1] w-full bg-transparent text-white rounded-full',
                                 'placeholder:text-neutral-400 focus:outline-none transition-all duration-500',
-                                isFocused
-                                    ? 'border-[rgba(100,200,220,0.4)] shadow-[0_0_20px_rgba(13,59,79,0.3)]'
-                                    : 'border-white/20 group-hover:border-white/30 group-hover:bg-black/50',
+                                'border-none',
                                 isLarge ? 'px-8 py-5 text-lg' : 'px-6 py-4 text-base',
                                 showTextButton ? 'pr-36' : ''
                             )}
