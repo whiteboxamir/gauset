@@ -1,7 +1,23 @@
-import { createClient } from '@supabase/supabase-js';
+// Supabase REST client — uses fetch directly, no SDK dependency needed
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+export async function supabaseInsert(table: string, data: Record<string, unknown>) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify(data),
+    });
 
-// Server-side only — uses service role key (never exposed to client)
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        return { error: errorBody };
+    }
+
+    return { error: null };
+}
