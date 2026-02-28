@@ -180,7 +180,7 @@ export function HeroPage() {
                                                     color: 'rgba(100, 200, 220, 0.5)',
                                                 }}
                                             >
-                                                Introducing Gauset
+                                                Introducing GAUSET
                                             </p>
                                             <p
                                                 className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tighter leading-[1.05] text-white/90"
@@ -295,7 +295,7 @@ export function HeroPage() {
                                             className="text-5xl sm:text-6xl md:text-7xl font-medium tracking-[-0.04em] text-white/90 mb-3"
                                             style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
                                         >
-                                            Gauset
+                                            GAUSET
                                         </p>
                                         <p
                                             className="text-base sm:text-lg tracking-tight text-neutral-400 font-light mb-10"
