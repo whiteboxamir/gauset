@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseInsert } from '@/lib/supabase';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,15 +17,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Insert into Supabase
-        const { error } = await supabase
-            .from('waitlist')
-            .insert({ email });
+        const { error } = await supabaseInsert('waitlist', { email });
 
         if (error) {
             // Unique constraint violation = duplicate
             if (error.code === '23505') {
                 return NextResponse.json(
-                    { success: true, message: "You're already on the list." },
+                    { success: true, message: "You're already in. We'll be in touch." },
                     { status: 200 }
                 );
             }
@@ -37,7 +35,7 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json(
-            { success: true, message: "You're on the list." },
+            { success: true, message: "You're in." },
             { status: 201 }
         );
     } catch (err) {

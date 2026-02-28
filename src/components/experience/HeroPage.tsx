@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ScrollControls, Scroll, Preload } from '@react-three/drei';
 import { EffectComposer, Noise, Vignette, Bloom } from '@react-three/postprocessing';
@@ -13,24 +13,45 @@ import { WaitlistForm } from '@/components/ui/WaitlistForm';
 /*
   SIX-PHASE CONVERSION FUNNEL — Cinematic Product Experience
 
-  Phase 1 (0%–15%):   HOOK — "Build worlds. Not clips." + CTA
+  Phase 1 (0%–15%):   HOOK — "Build worlds. Not clips." (pure statement)
   Phase 2 (15%–30%):  PROBLEM — AI video is broken (FRACTURE world)
   Phase 3 (30%–50%):  SOLUTION — Gauset is the production layer (PRODUCTION world)
   Phase 4 (50%–70%):  PROOF — Same world, infinite shots (PERSISTENT SHOT world)
   Phase 5 (70%–85%):  HORIZON — The future of production
-  Phase 6 (85%–100%): CTA — Early access, urgency
+  Phase 6 (85%–100%): CTA — The singular early access moment
 */
 
 export function HeroPage() {
     const [mounted, setMounted] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => setMounted(true), 600);
         return () => clearTimeout(timer);
     }, []);
 
+    const handleFormSuccess = useCallback(() => {
+        setSubmitted(true);
+    }, []);
+
     return (
         <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-black">
+            {/* Cinematic submission overlay — dims the world on success */}
+            <AnimatePresence>
+                {submitted && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+                        className="fixed inset-0 z-[100] pointer-events-none"
+                        style={{
+                            background: 'radial-gradient(ellipse at 50% 60%, rgba(13,59,79,0.25) 0%, rgba(10,22,40,0.5) 50%, rgba(0,0,0,0.7) 100%)',
+                            backdropFilter: 'blur(4px)',
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+
             <Canvas
                 camera={{ fov: 50, near: 0.1, far: 200 }}
                 gl={{
@@ -55,16 +76,10 @@ export function HeroPage() {
                         <Scroll html style={{ width: '100%' }}>
                             <div className="w-screen pointer-events-none">
 
-                                {/* ═══ PHASE 1: HOOK — Immediate clarity ═══ */}
+                                {/* ═══ PHASE 1: HOOK — Pure cinematic statement ═══ */}
                                 <div className="h-screen flex flex-col items-center justify-center px-6 text-center relative">
                                     <nav className="fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-10 py-5 pointer-events-auto z-50">
                                         <div className="text-white/90 font-bold tracking-[0.15em] text-xs uppercase">Gauset</div>
-                                        <a
-                                            href="#waitlist"
-                                            className="text-white/50 text-xs tracking-wider border border-white/[0.08] rounded-full px-5 py-2.5 hover:text-white/90 hover:border-white/[0.2] hover:shadow-[0_0_15px_rgba(212,160,74,0.15)] transition-all duration-500"
-                                        >
-                                            Get Early Access
-                                        </a>
                                     </nav>
 
                                     <AnimatePresence>
@@ -88,13 +103,20 @@ export function HeroPage() {
                                                     The production layer for&nbsp;AI&nbsp;cinema.
                                                 </motion.p>
 
+                                                {/* Scroll hint */}
                                                 <motion.div
-                                                    initial={{ opacity: 0, y: 15 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ duration: 1.0, delay: 3.0, ease: [0.25, 0.1, 0.25, 1] }}
-                                                    className="w-full max-w-sm pointer-events-auto"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    transition={{ duration: 1.2, delay: 3.5 }}
+                                                    className="mt-8"
                                                 >
-                                                    <WaitlistForm size="large" />
+                                                    <motion.div
+                                                        animate={{ y: [0, 6, 0] }}
+                                                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                                                        className="w-5 h-8 rounded-full border border-white/15 flex items-start justify-center p-1.5"
+                                                    >
+                                                        <motion.div className="w-1 h-1.5 rounded-full bg-white/30" />
+                                                    </motion.div>
                                                 </motion.div>
                                             </div>
                                         )}
@@ -144,8 +166,11 @@ export function HeroPage() {
                                     <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                                         <div className="md:max-w-2xl space-y-8">
                                             <p
-                                                className="text-[10px] uppercase tracking-[0.35em] text-[#FFB347]/50 font-medium"
-                                                style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                                className="text-[10px] uppercase tracking-[0.35em] font-medium"
+                                                style={{
+                                                    textShadow: '0 1px 8px rgba(0,0,0,0.9)',
+                                                    color: 'rgba(100, 200, 220, 0.5)',
+                                                }}
                                             >
                                                 Introducing Gauset
                                             </p>
@@ -153,9 +178,9 @@ export function HeroPage() {
                                                 className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tighter leading-[1.05] text-white/90"
                                                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
                                             >
-                                                Persistent worlds
+                                                A world you can
                                                 <br />
-                                                for production.
+                                                work inside.
                                             </p>
                                             <div className="space-y-4">
                                                 <p
@@ -174,9 +199,6 @@ export function HeroPage() {
                                                     Like a real production — but the world is AI-generated.
                                                 </p>
                                             </div>
-                                            <div className="w-full max-w-sm pointer-events-auto pt-4">
-                                                <WaitlistForm />
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -188,12 +210,6 @@ export function HeroPage() {
                                 <div className="h-[140vh] flex flex-col items-center relative">
                                     <div className="sticky top-0 h-screen flex flex-col items-center justify-center">
                                         <div className="max-w-3xl px-6 text-center space-y-6">
-                                            <p
-                                                className="text-[10px] uppercase tracking-[0.35em] text-[#FFB347]/40 font-medium"
-                                                style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
-                                            >
-                                                Persistent World Demo
-                                            </p>
                                             <p
                                                 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter text-white/80 leading-tight"
                                                 style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}
@@ -213,11 +229,16 @@ export function HeroPage() {
 
                                             {/* Shot type labels */}
                                             <div className="flex gap-4 justify-center mt-8 flex-wrap">
-                                                {['Wide', 'Close-up', 'OTS', 'Tracking'].map((shot, i) => (
+                                                {['Wide', 'Close-up', 'OTS', 'Tracking'].map((shot) => (
                                                     <div
                                                         key={shot}
-                                                        className="px-4 py-2 rounded-full border border-[#FFB347]/20 bg-[#FFB347]/5 text-[#FFB347]/70 text-xs tracking-[0.15em] uppercase font-medium"
-                                                        style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                                        className="px-4 py-2 rounded-full border text-xs tracking-[0.15em] uppercase font-medium"
+                                                        style={{
+                                                            borderColor: 'rgba(100, 200, 220, 0.2)',
+                                                            backgroundColor: 'rgba(100, 200, 220, 0.05)',
+                                                            color: 'rgba(100, 200, 220, 0.7)',
+                                                            textShadow: '0 1px 8px rgba(0,0,0,0.9)',
+                                                        }}
                                                     >
                                                         {shot}
                                                     </div>
@@ -254,47 +275,59 @@ export function HeroPage() {
                                 {/* ═══ TRANSITION ═══ */}
                                 <div className="h-[15vh]" />
 
-                                {/* ═══ PHASE 6: CTA — Early access, urgency ═══ */}
+                                {/* ═══ PHASE 6: CTA — The singular early access moment ═══ */}
                                 <div id="waitlist" className="h-screen flex flex-col items-center justify-center relative">
-                                    <p
-                                        className="text-5xl sm:text-6xl md:text-7xl font-medium tracking-[-0.04em] text-white/90 mb-3"
-                                        style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}
-                                    >
-                                        Gauset
-                                    </p>
-                                    <p
-                                        className="text-base sm:text-lg tracking-[0.08em] text-white/40 font-light mb-3"
-                                        style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
-                                    >
-                                        Persistent worlds for production.
-                                    </p>
+                                    {/* Atmospheric gradient behind the form */}
+                                    <div
+                                        className="absolute inset-0 pointer-events-none"
+                                        style={{
+                                            background: 'radial-gradient(ellipse 80% 60% at 50% 55%, rgba(13,59,79,0.2) 0%, rgba(26,39,68,0.1) 40%, transparent 70%)',
+                                        }}
+                                    />
 
-                                    {/* Urgency block */}
-                                    <div className="mb-8 mt-6 space-y-2 text-center">
+                                    {/* Breathing glow */}
+                                    <div
+                                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] pointer-events-none"
+                                        style={{
+                                            background: 'radial-gradient(ellipse, rgba(13,59,79,0.15) 0%, rgba(212,160,74,0.04) 40%, transparent 70%)',
+                                            animation: 'glow-pulse 6s ease-in-out infinite',
+                                        }}
+                                    />
+
+                                    <div className="relative z-10 flex flex-col items-center text-center max-w-2xl px-6">
                                         <p
-                                            className="text-[11px] uppercase tracking-[0.25em] text-[#FFB347]/70 font-medium"
-                                            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+                                            className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-[-0.04em] leading-[1.1] mb-4"
+                                            style={{
+                                                textShadow: '0 4px 30px rgba(0,0,0,0.8)',
+                                                background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 100%)',
+                                                WebkitBackgroundClip: 'text',
+                                                WebkitTextFillColor: 'transparent',
+                                            }}
                                         >
-                                            Early access — limited rollout
+                                            The world doesn&apos;t
+                                            <br />
+                                            reset anymore.
                                         </p>
+
                                         <p
-                                            className="text-sm text-neutral-400 tracking-tight"
-                                            style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}
+                                            className="text-[11px] uppercase tracking-[0.3em] font-medium mb-10"
+                                            style={{
+                                                color: 'rgba(100, 200, 220, 0.5)',
+                                                textShadow: '0 1px 12px rgba(13,59,79,0.4)',
+                                            }}
                                         >
-                                            Currently onboarding first productions.
+                                            Private access · Rolling invites
                                         </p>
-                                    </div>
 
-                                    <div className="w-full max-w-sm pointer-events-auto mb-6">
-                                        <WaitlistForm size="large" />
+                                        <div className="w-full max-w-sm pointer-events-auto mb-6">
+                                            <WaitlistForm
+                                                size="large"
+                                                placeholder="you@yourstudio.com"
+                                                buttonText="Enter early"
+                                                onSuccess={handleFormSuccess}
+                                            />
+                                        </div>
                                     </div>
-
-                                    <p
-                                        className="text-[11px] tracking-[0.2em] text-[#FFB347]/30 font-light mt-6"
-                                        style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
-                                    >
-                                        Limited to 50 teams in the initial rollout.
-                                    </p>
 
                                     {/* Footer */}
                                     <footer className="absolute bottom-6 left-0 right-0 flex justify-center gap-8 text-xs text-neutral-600">

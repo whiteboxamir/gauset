@@ -1,20 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface WaitlistFormProps {
     className?: string;
     size?: 'default' | 'large';
+    placeholder?: string;
+    buttonText?: string;
+    onSuccess?: () => void;
 }
 
-export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps) {
+export function WaitlistForm({
+    className,
+    size = 'default',
+    placeholder = 'you@yourstudio.com',
+    buttonText,
+    onSuccess,
+}: WaitlistFormProps) {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (status === 'loading' || status === 'success') return;
 
@@ -36,10 +45,10 @@ export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps)
             if (data.success) {
                 setStatus('success');
                 setMessage(data.message);
+                onSuccess?.();
             } else {
                 setStatus('error');
                 setMessage(data.message);
-                // Reset to idle after 3s so user can retry
                 setTimeout(() => {
                     setStatus('idle');
                     setMessage('');
@@ -53,83 +62,162 @@ export function WaitlistForm({ className, size = 'default' }: WaitlistFormProps)
                 setMessage('');
             }, 3000);
         }
-    };
+    }, [status, onSuccess]);
 
     const isLarge = size === 'large';
+    const showTextButton = isLarge && buttonText;
 
     return (
         <div className={cn('relative w-full max-w-md mx-auto', className)}>
-            <form onSubmit={handleSubmit} className="relative group flex w-full">
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="Enter your email"
-                    required
-                    disabled={status === 'loading' || status === 'success'}
-                    className={cn(
-                        'w-full bg-white/[0.03] border border-white/[0.1] text-white rounded-full',
-                        'placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all duration-300',
-                        'group-hover:bg-white/[0.05] group-hover:border-white/[0.2]',
-                        isLarge ? 'px-8 py-5 text-lg' : 'px-6 py-4 text-base'
-                    )}
-                />
-                <button
-                    type="submit"
-                    disabled={status === 'loading' || status === 'success'}
-                    className={cn(
-                        'absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center',
-                        'transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed',
-                        status === 'success' ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-white text-black hover:bg-neutral-200',
-                        isLarge ? 'w-12 h-12' : 'w-10 h-10'
-                    )}
-                >
-                    <AnimatePresence mode="wait">
-                        {(status === 'idle' || status === 'error') && (
-                            <motion.div
-                                key="arrow"
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                            >
-                                <ArrowRight className={isLarge ? "w-5 h-5" : "w-4 h-4"} />
-                            </motion.div>
-                        )}
+            <AnimatePresence mode="wait">
+                {status !== 'success' ? (
+                    <motion.form
+                        key="form"
+                        onSubmit={handleSubmit}
+                        initial={false}
+                        exit={{ opacity: 0, scale: 0.95, filter: 'blur(6px)', transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] } }}
+                        className="relative group flex w-full"
+                    >
+                        {/* Animated glow ring behind input */}
+                        <div
+                            className={cn(
+                                'absolute -inset-[1px] rounded-full transition-all duration-700 pointer-events-none',
+                                isFocused
+                                    ? 'opacity-100 blur-sm'
+                                    : 'opacity-0'
+                            )}
+                            style={{
+                                background: isFocused
+                                    ? 'linear-gradient(90deg, rgba(13,59,79,0.3), rgba(100,200,220,0.15), rgba(13,59,79,0.3))'
+                                    : 'none',
+                            }}
+                        />
+
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder={placeholder}
+                            required
+                            disabled={status === 'loading'}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => setIsFocused(false)}
+                            className={cn(
+                                'relative z-[1] w-full bg-white/[0.03] border text-white rounded-full',
+                                'placeholder:text-neutral-600 focus:outline-none transition-all duration-500',
+                                isFocused
+                                    ? 'border-[rgba(100,200,220,0.3)] shadow-[0_0_20px_rgba(13,59,79,0.2)]'
+                                    : 'border-white/[0.08] group-hover:border-white/[0.15] group-hover:bg-white/[0.04]',
+                                isLarge ? 'px-8 py-5 text-lg' : 'px-6 py-4 text-base',
+                                showTextButton ? 'pr-36' : ''
+                            )}
+                        />
+
+                        <button
+                            type="submit"
+                            disabled={status === 'loading'}
+                            className={cn(
+                                'absolute right-2 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center z-[2]',
+                                'transition-all duration-500 disabled:cursor-not-allowed',
+                                'active:scale-95',
+                                status === 'loading'
+                                    ? 'bg-white/10 text-white/60'
+                                    : showTextButton
+                                        ? 'bg-white text-black hover:bg-[rgba(100,200,220,1)] hover:text-white hover:shadow-[0_0_24px_rgba(13,59,79,0.4)]'
+                                        : 'bg-white text-black hover:bg-[rgba(100,200,220,1)] hover:text-white hover:shadow-[0_0_20px_rgba(13,59,79,0.4)]',
+                                showTextButton
+                                    ? 'px-6 h-12 text-sm font-medium tracking-wide'
+                                    : isLarge ? 'w-12 h-12' : 'w-10 h-10'
+                            )}
+                        >
+                            {status === 'loading' ? (
+                                <svg className={cn('animate-spin', isLarge ? 'w-5 h-5' : 'w-4 h-4')} viewBox="0 0 24 24" fill="none">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                            ) : showTextButton ? (
+                                buttonText
+                            ) : (
+                                <svg className={cn(isLarge ? 'w-5 h-5' : 'w-4 h-4')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M5 12h14M12 5l7 7-7 7" />
+                                </svg>
+                            )}
+                        </button>
+
+                        {/* Shimmer overlay during loading */}
                         {status === 'loading' && (
-                            <motion.div
-                                key="loader"
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                className="animate-spin"
-                            >
-                                <Loader2 className={isLarge ? "w-5 h-5" : "w-4 h-4"} />
-                            </motion.div>
+                            <div className="absolute inset-0 rounded-full overflow-hidden z-[3] pointer-events-none">
+                                <div
+                                    className="absolute inset-0 animate-shimmer"
+                                    style={{
+                                        background: 'linear-gradient(90deg, transparent, rgba(100,200,220,0.07), transparent)',
+                                    }}
+                                />
+                            </div>
                         )}
-                        {status === 'success' && (
+                    </motion.form>
+                ) : (
+                    <motion.div
+                        key="success"
+                        initial={{ opacity: 0, scale: 0.9, filter: 'blur(8px)' }}
+                        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                        transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                        className="relative flex flex-col items-center justify-center text-center py-6"
+                    >
+                        {/* Radial glow behind text */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <motion.div
-                                key="check"
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                            >
-                                <Check className={isLarge ? "w-5 h-5" : "w-4 h-4"} />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </button>
-            </form>
-            {message && (
-                <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={cn(
-                        "absolute -bottom-8 left-0 right-0 text-center text-sm font-medium",
-                        status === 'success' ? 'text-[#00ff9d]' : 'text-red-400'
-                    )}
-                >
-                    {message}
-                </motion.p>
-            )}
+                                initial={{ scale: 0.3, opacity: 0 }}
+                                animate={{ scale: 1.5, opacity: 1 }}
+                                transition={{ duration: 1.5, ease: 'easeOut' }}
+                                className="w-48 h-48 rounded-full"
+                                style={{
+                                    background: 'radial-gradient(circle, rgba(13,59,79,0.2) 0%, rgba(100,200,220,0.06) 50%, transparent 70%)',
+                                }}
+                            />
+                        </div>
+
+                        <motion.p
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.4 }}
+                            className={cn(
+                                'relative z-[1] font-medium tracking-tight',
+                                isLarge ? 'text-3xl' : 'text-2xl'
+                            )}
+                            style={{
+                                background: 'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(100,200,220,0.7) 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}
+                        >
+                            You&apos;re in.
+                        </motion.p>
+
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.8, delay: 0.9 }}
+                            className="relative z-[1] text-sm text-neutral-500 tracking-wide mt-3"
+                        >
+                            We&apos;ll reach out before public release.
+                        </motion.p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Error message */}
+            <AnimatePresence>
+                {status === 'error' && message && (
+                    <motion.p
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="absolute -bottom-8 left-0 right-0 text-center text-sm font-medium text-red-400/80"
+                    >
+                        {message}
+                    </motion.p>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
