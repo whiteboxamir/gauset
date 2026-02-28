@@ -60,7 +60,7 @@ export function SuccessOverlay({ show, onClose }: SuccessOverlayProps) {
                                 WebkitTextFillColor: 'transparent',
                             }}
                         >
-                            You&apos;re in.
+                            You&apos;re on the list.
                         </motion.h2>
 
                         {/* "Early access granted." */}
@@ -75,7 +75,7 @@ export function SuccessOverlay({ show, onClose }: SuccessOverlayProps) {
                                 margin: 0,
                             }}
                         >
-                            Early access granted.
+                            We&apos;ll be in touch.
                         </motion.p>
 
                         {/* Back button — appears after 3s */}
