@@ -166,6 +166,9 @@ export function HeroPage() {
                                         )}
                                     </AnimatePresence>
 
+                                    {/* Director UI overlay — film-monitor controls */}
+                                    <DirectorOverlay />
+
                                     {/* Bottom seam killer — extra gradient fade */}
                                     <div style={{
                                         position: "absolute",
@@ -404,11 +407,6 @@ export function HeroPage() {
                     <Preload all />
                 </Suspense>
             </Canvas>
-
-            {/* Director UI overlay — OUTSIDE scroll tree to prevent 24fps timecode re-renders from disrupting scroll */}
-            <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
-                <DirectorOverlay />
-            </div>
         </div>
     );
 }

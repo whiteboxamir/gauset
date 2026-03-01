@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 const LENS_VALUES = ['50mm', '85mm', '35mm'];
@@ -9,35 +9,61 @@ const SCENE_VALUES = ['SC 01', 'SC 02', 'SC 03'];
 const TAKE_VALUES = ['TK 3', 'TK 7', 'TK 2'];
 const CYCLE_INTERVAL = 8000;
 
-function useTimecode() {
-    const [timecode, setTimecode] = useState('00:00:00:00');
+/**
+ * Timecode component — updates via requestAnimationFrame + direct DOM mutation.
+ * Zero React re-renders, safe inside scroll containers.
+ */
+function Timecode({ mono }: { mono: React.CSSProperties }) {
+    const tcRef = useRef<HTMLDivElement>(null);
     const startRef = useRef(Date.now());
 
     useEffect(() => {
+        let raf: number;
         const update = () => {
-            const elapsed = Date.now() - startRef.current;
-            const totalFrames = Math.floor(elapsed / (1000 / 24));
-            const frames = totalFrames % 24;
-            const totalSeconds = Math.floor(totalFrames / 24);
-            const seconds = totalSeconds % 60;
-            const minutes = Math.floor(totalSeconds / 60) % 60;
-            const hours = Math.floor(totalSeconds / 3600);
-            setTimecode(
-                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`
-            );
+            if (tcRef.current) {
+                const elapsed = Date.now() - startRef.current;
+                const totalFrames = Math.floor(elapsed / (1000 / 24));
+                const frames = totalFrames % 24;
+                const totalSeconds = Math.floor(totalFrames / 24);
+                const seconds = totalSeconds % 60;
+                const minutes = Math.floor(totalSeconds / 60) % 60;
+                const hours = Math.floor(totalSeconds / 3600);
+                tcRef.current.textContent =
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`;
+            }
+            raf = requestAnimationFrame(update);
         };
-        const interval = setInterval(update, 1000 / 24);
-        return () => clearInterval(interval);
+        raf = requestAnimationFrame(update);
+        return () => cancelAnimationFrame(raf);
     }, []);
 
-    return timecode;
+    return (
+        <div
+            className="absolute"
+            style={{
+                bottom: '36px',
+                right: '40px',
+                ...mono,
+                textAlign: 'right',
+                lineHeight: '2',
+            }}
+        >
+            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)' }}>TC</div>
+            <div
+                ref={tcRef}
+                style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}
+            >
+                00:00:00:00
+            </div>
+            <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.55)' }}>24 FPS · 4K</div>
+        </div>
+    );
 }
 
 export function DirectorOverlay() {
     const [index, setIndex] = useState(0);
     const [visible, setVisible] = useState(true);
     const [glitch, setGlitch] = useState(false);
-    const timecode = useTimecode();
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -129,21 +155,8 @@ export function DirectorOverlay() {
                 </div>
             </div>
 
-            {/* ── Bottom-right: Timecode ── */}
-            <div
-                className="absolute"
-                style={{
-                    bottom: '36px',
-                    right: '40px',
-                    ...mono,
-                    textAlign: 'right',
-                    lineHeight: '2',
-                }}
-            >
-                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)' }}>TC</div>
-                <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{timecode}</div>
-                <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.55)' }}>24 FPS · 4K</div>
-            </div>
+            {/* ── Bottom-right: Timecode (zero re-renders — uses rAF + direct DOM) ── */}
+            <Timecode mono={mono} />
 
             {/* ── Top-left: Format ── */}
             <div
