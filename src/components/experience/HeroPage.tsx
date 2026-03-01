@@ -12,6 +12,8 @@ import { WaitlistForm } from '@/components/ui/WaitlistForm';
 import { SuccessOverlay } from '@/components/ui/SuccessOverlay';
 import { HeroBackground } from './HeroBackground';
 import { DirectorOverlay } from './DirectorOverlay';
+import { PipelineSection } from './PipelineSection';
+import { FinalProofSection } from './FinalProofSection';
 
 /*
   SIX-PHASE CONVERSION FUNNEL — clear → powerful → inevitable → signup
@@ -65,7 +67,7 @@ export function HeroPage() {
                 <fog attach="fog" args={['#050510', 30, 120]} />
 
                 <Suspense fallback={null}>
-                    <ScrollControls pages={8.6} damping={0.12}>
+                    <ScrollControls pages={12.0} damping={0.12}>
                         <WorldRenderer />
 
                         <Scroll html style={{ width: '100%' }}>
@@ -309,7 +311,13 @@ export function HeroPage() {
 
 
                                 {/* Spacer for breathing room */}
-                                <div style={{ height: '60vh' }} />
+                                <div style={{ height: '30vh' }} />
+
+                                {/* ═══ PIPELINE — Living system visualization ═══ */}
+                                <PipelineSection />
+
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '30vh' }} />
 
                                 {/* ═══ PHASE 5: BRIDGE — The world doesn't reset ═══ */}
                                 <div className="h-screen flex items-center justify-center relative">
@@ -333,6 +341,12 @@ export function HeroPage() {
 
                                 {/* Spacer for breathing room */}
                                 <div style={{ height: '20vh' }} />
+
+                                {/* ═══ FINAL PROOF — From prompt to production ═══ */}
+                                <FinalProofSection />
+
+                                {/* Spacer for breathing room */}
+                                <div style={{ height: '10vh' }} />
 
                                 {/* ═══ PHASE 6: CLOSING — Conversion CTA ═══ */}
                                 <div className="h-screen flex flex-col items-center justify-center relative">
