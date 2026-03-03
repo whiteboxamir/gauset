@@ -24,20 +24,11 @@ body {
   /* Kill iOS Safari bounce and pull-to-refresh */
 }
 
-/* Hero container — flush to top, safe-area aware */
+/* Hero container — flush to top without safe-area inset or webkit hacks */
 .hero-container {
   margin-top: 0;
-  padding-top: env(safe-area-inset-top, 0px);
-  min-height: 100svh;
-  min-height: -webkit-fill-available;
-}
-
-/* Mobile hero fix — eliminate top gap on real devices */
-@supports (min-height: 100svh) {
-  .hero-container {
-    min-height: 100svh;
-    height: auto;
-  }
+  padding-top: 0;
+  min-height: 100vh;
 }
 
 /* Mobile scroll fix — touch devices only */

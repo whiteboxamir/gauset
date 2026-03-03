@@ -78,7 +78,9 @@ export function WorldRenderer() {
     }), []);
 
     useFrame((state, delta) => {
-        const offset = scroll.offset; // 0–1
+        // Strict firewall: clamp offset so iOS rubber-banding cannot force it < 0 or > 1,
+        // preventing NaN errors and undefined array lookups in WebGL math
+        const offset = THREE.MathUtils.clamp(scroll.offset, 0, 1);
 
         // Calculate per-world visibility and local progress
         for (let i = 0; i < WORLD_COUNT; i++) {
