@@ -149,8 +149,8 @@ export function WorldRenderer() {
         // --- Heavy Steadicam Breathing Effect ---
         // Tweaking variables for the organic camera drift
         const breathSpeed = 0.4;
-        const breathAmplitudePos = 0.02;  // Positional drift
-        const breathAmplitudeLook = 0.01; // Rotational drift
+        const breathAmplitudePos = 0.08;  // Bumped to 0.08 for visibility
+        const breathAmplitudeLook = 0.04; // Boosted rotational drift
 
         const time = state.clock.elapsedTime;
         const breathOffsetX = Math.sin(time * breathSpeed) * breathAmplitudePos;
@@ -159,13 +159,19 @@ export function WorldRenderer() {
         const lookOffsetX = Math.sin(time * breathSpeed * 1.2) * breathAmplitudeLook;
         const lookOffsetY = Math.cos(time * breathSpeed * 0.9) * breathAmplitudeLook;
 
-        state.camera.position.copy(_smoothPos);
-        state.camera.position.x += breathOffsetX;
-        state.camera.position.y += breathOffsetY;
+        // Apply breathing strictly ON TOP of the smooth dampened position
+        // so the scrolling logic doesn't fight or swallow the drift.
+        state.camera.position.set(
+            _smoothPos.x + breathOffsetX,
+            _smoothPos.y + breathOffsetY,
+            _smoothPos.z
+        );
 
-        _finalLook.copy(_smoothLook);
-        _finalLook.x += lookOffsetX;
-        _finalLook.y += lookOffsetY;
+        _finalLook.set(
+            _smoothLook.x + lookOffsetX,
+            _smoothLook.y + lookOffsetY,
+            _smoothLook.z
+        );
 
         state.camera.lookAt(_finalLook);
 
