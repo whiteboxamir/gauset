@@ -28,7 +28,7 @@ body {
 .hero-container {
   margin-top: 0;
   padding-top: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Mobile scroll fix — touch devices only */
@@ -112,7 +112,7 @@ body {
   }
 
   100% {
-    transform: translateY(-100vh) translateX(20px);
+    transform: translateY(-100dvh) translateX(20px);
     opacity: 0;
   }
 }
@@ -256,7 +256,7 @@ body {
   }
 
   100% {
-    transform: translateY(100vh);
+    transform: translateY(100dvh);
     opacity: 0;
   }
 }

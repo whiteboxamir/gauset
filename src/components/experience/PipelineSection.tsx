@@ -98,7 +98,7 @@ function PipelineStage({
         <div
             ref={stageRef}
             className="relative flex items-center justify-center px-6 md:px-16"
-            style={{ minHeight: '55vh' }}
+            style={{ minHeight: '55dvh' }}
         >
             {/* ── Stage content ── */}
             <div

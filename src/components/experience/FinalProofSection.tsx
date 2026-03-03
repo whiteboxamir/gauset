@@ -34,7 +34,7 @@ export function FinalProofSection() {
             style={{
                 position: 'relative',
                 width: '100%',
-                height: '85vh',
+                height: '85dvh',
                 overflow: 'hidden',
                 background: '#050510',
                 opacity: isVisible ? 1 : 0,
@@ -109,7 +109,7 @@ export function FinalProofSection() {
                     alignItems: 'center',
                     justifyContent: 'flex-start',
                     height: '100%',
-                    padding: '6vh 24px 0',
+                    padding: '6dvh 24px 0',
                     pointerEvents: 'none',
                 }}
             >

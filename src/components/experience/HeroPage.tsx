@@ -63,8 +63,8 @@ export function HeroPage() {
                 <DirectorOverlay />
                 <div style={{ position: "absolute", bottom: 0, left: 0, width: "100%", height: "120px", pointerEvents: "none", background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.6))" }} />
             </div>
-            <div style={{ height: '60vh', position: 'relative', zIndex: 1 }} />
-            <div className="h-screen flex items-center relative">
+            <div style={{ height: '60dvh', position: 'relative', zIndex: 1 }} />
+            <div className="h-[100dvh] flex items-center relative">
                 <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                     <div className="md:ml-auto md:max-w-2xl space-y-8">
                         <p className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium tracking-tighter leading-[1.05] text-white/90" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}>
@@ -77,8 +77,8 @@ export function HeroPage() {
                     </div>
                 </div>
             </div>
-            <div style={{ height: '60vh' }} />
-            <div className="h-screen flex items-center relative">
+            <div style={{ height: '60dvh' }} />
+            <div className="h-[100dvh] flex items-center relative">
                 <div className="w-full max-w-6xl mx-auto px-6 md:px-16">
                     <div className="md:max-w-2xl space-y-8">
                         <p className="text-[10px] uppercase tracking-[0.35em] font-medium" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)', color: 'rgba(100, 200, 220, 0.5)' }}>Introducing GAUSET</p>
@@ -90,8 +90,8 @@ export function HeroPage() {
                     </div>
                 </div>
             </div>
-            <div style={{ height: '60vh' }} />
-            <div className="h-screen flex flex-col items-center justify-center relative">
+            <div style={{ height: '60dvh' }} />
+            <div className="h-[100dvh] flex flex-col items-center justify-center relative">
                 <div className="flex flex-col items-center justify-center">
                     <div className="max-w-3xl px-6 text-center space-y-6">
                         <p className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tighter text-white/80 leading-tight" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.9)' }}>Same world.<br />Different shots.</p>
@@ -104,19 +104,19 @@ export function HeroPage() {
                     </div>
                 </div>
             </div>
-            <div style={{ height: '30vh' }} />
+            <div style={{ height: '30dvh' }} />
             <PipelineSection />
-            <div style={{ height: '30vh' }} />
-            <div className="h-screen flex items-center justify-center relative">
+            <div style={{ height: '30dvh' }} />
+            <div className="h-[100dvh] flex items-center justify-center relative">
                 <div className="max-w-3xl px-6 text-center space-y-4">
                     <p className="text-2xl sm:text-3xl md:text-4xl font-medium tracking-tighter text-white/60 leading-tight" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}>The world doesn&apos;t reset anymore.</p>
                     <p className="text-sm md:text-base text-neutral-500 tracking-tight leading-relaxed max-w-md mx-auto" style={{ textShadow: '0 2px 16px rgba(0,0,0,0.9)' }}>Every shot lives in the same world. That changes everything.</p>
                 </div>
             </div>
-            <div style={{ height: '20vh' }} />
+            <div style={{ height: '20dvh' }} />
             <FinalProofSection />
-            <div style={{ height: '10vh' }} />
-            <div className="h-screen flex flex-col items-center justify-center relative">
+            <div style={{ height: '10dvh' }} />
+            <div className="h-[100dvh] flex flex-col items-center justify-center relative">
                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 55%, rgba(13,59,79,0.15) 0%, rgba(26,39,68,0.08) 40%, transparent 70%)' }} />
                 <div className="relative z-10 flex flex-col items-center text-center max-w-2xl px-6">
                     <p className="text-5xl sm:text-6xl md:text-7xl font-medium tracking-[-0.04em] text-white/90 mb-3" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8)' }}>GAUSET</p>
