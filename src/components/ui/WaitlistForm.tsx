@@ -161,7 +161,23 @@ export function WaitlistForm({
                             </div>
                         )}
                     </motion.form>
-                ) : null}
+                ) : (
+                    <motion.div
+                        key="success"
+                        initial={{ opacity: 0, scale: 0.95, filter: 'blur(6px)' }}
+                        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                        className={cn(
+                            'flex items-center justify-center w-full bg-black/40 backdrop-blur-md border border-[rgba(100,200,220,0.4)] rounded-full',
+                            isLarge ? 'py-3 text-lg' : 'py-2 text-base'
+                        )}
+                        style={{ boxShadow: '0 0 20px rgba(13,59,79,0.3)' }}
+                    >
+                        <p className="text-white font-medium tracking-wide">
+                            {message || 'Access Requested'}
+                        </p>
+                    </motion.div>
+                )}
             </AnimatePresence>
 
             {/* Error message */}

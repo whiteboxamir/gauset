@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ScrollControls, Scroll, Preload } from '@react-three/drei';
 import { EffectComposer, Vignette, Bloom } from '@react-three/postprocessing';
@@ -27,8 +27,9 @@ function CameraController() {
 }
 
 export function HeroPage() {
-    const handleFormSuccess = useCallback(() => { }, []);
-    const handleOverlayClose = useCallback(() => { }, []);
+    const [showOverlay, setShowOverlay] = useState(false);
+    const handleFormSuccess = useCallback(() => { setShowOverlay(true); }, []);
+    const handleOverlayClose = useCallback(() => { setShowOverlay(false); }, []);
 
     const pageContent = (
         <>
@@ -162,7 +163,7 @@ export function HeroPage() {
             <nav className="fixed top-0 left-0 right-0 flex justify-between items-center px-6 md:px-10 py-5 pointer-events-none z-50">
                 <div className="text-white/90 font-bold tracking-[0.15em] text-xs uppercase pointer-events-auto">Gauset</div>
             </nav>
-            <SuccessOverlay show={false} onClose={handleOverlayClose} />
+            <SuccessOverlay show={showOverlay} onClose={handleOverlayClose} />
 
             <div className="absolute inset-0 w-full h-full -z-10">
                 <Canvas camera={{ fov: 50, near: 0.1, far: 200 }} gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false, depth: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.85 }} dpr={[1, 1.5]} style={{ background: '#000000', touchAction: 'pan-y' }}>
