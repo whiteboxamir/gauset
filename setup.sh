@@ -28,6 +28,12 @@ if [ ! -d "backend/ml-sharp" ]; then
 else
   echo "ML-Sharp already cloned."
 fi
+if [ -f "backend/ml-sharp/requirements.txt" ]; then
+  python3 -m pip install --no-cache-dir -r backend/ml-sharp/requirements.txt || echo "Warning: Failed to install ML-Sharp requirements."
+fi
+if [ -f "backend/ml-sharp/pyproject.toml" ] || [ -f "backend/ml-sharp/setup.py" ]; then
+  python3 -m pip install --no-cache-dir -e backend/ml-sharp || echo "Warning: Failed to install ML-Sharp package."
+fi
 
 # 5. Clone TripoSR
 echo "Cloning TripoSR..."
