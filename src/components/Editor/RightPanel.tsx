@@ -1,9 +1,14 @@
 "use client";
 
-import React from "react";
-import { Layers, Box, Save, Plus } from "lucide-react";
+import React, { useState } from "react";
+import { Layers, Box, Save, Plus, Loader2 } from "lucide-react";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_GAUSET_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export default function RightPanel({ sceneGraph, setSceneGraph, assetsList, activeScene }: any) {
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState("");
+    const [saveError, setSaveError] = useState("");
 
     const handleDragStart = (e: React.DragEvent, asset: any) => {
         e.dataTransfer.setData("asset", JSON.stringify(asset));
@@ -16,15 +21,53 @@ export default function RightPanel({ sceneGraph, setSceneGraph, assetsList, acti
         }));
     };
 
+    const saveScene = async () => {
+        const sceneId = activeScene || `scene_${Date.now().toString(36)}`;
+        setIsSaving(true);
+        setSaveError("");
+        setSaveMessage("");
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/scene/save`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    scene_id: sceneId,
+                    scene_graph: {
+                        environment: sceneGraph.environment,
+                        assets: sceneGraph.assets,
+                    },
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Scene save failed (${response.status})`);
+            }
+
+            setSaveMessage(`Saved ${sceneId}`);
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : "Scene save failed");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-neutral-950">
             {/* Header */}
             <div className="p-4 border-b border-neutral-800 flex items-center justify-between shrink-0 bg-neutral-900/30">
                 <h3 className="font-semibold text-white tracking-tight text-sm">Scene Inspector</h3>
-                <button className="p-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white transition-colors shadow-lg shadow-blue-900/20" title="Save Scene as JSON">
-                    <Save className="h-4 w-4" />
+                <button
+                    onClick={saveScene}
+                    disabled={isSaving}
+                    className="p-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-60 disabled:hover:bg-blue-600"
+                    title="Save Scene as JSON"
+                >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 </button>
             </div>
+            {saveMessage && <p className="px-4 pt-3 text-xs text-emerald-400">{saveMessage}</p>}
+            {saveError && <p className="px-4 pt-3 text-xs text-rose-400">{saveError}</p>}
 
             {/* Scene Graph */}
             <div className="flex-1 overflow-y-auto p-4 border-b border-neutral-800">

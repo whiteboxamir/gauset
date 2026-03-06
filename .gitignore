@@ -29,3 +29,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local development artifacts
+.next-local/
+.next_broken_*/
+node_modules_broken*/
+node_modules_locked2/
+backend_venv/
+backend_venv_*/
+backend/ml-sharp/
+backend/TripoSR/
+uploads/
+assets/
+scenes/
+get-pip.py
+.fakehome/
+.agentrules
+.cursorrules

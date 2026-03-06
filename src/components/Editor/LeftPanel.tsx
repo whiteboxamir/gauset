@@ -1,51 +1,224 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Upload, ImageIcon, Box, Loader2 } from "lucide-react";
 
-export default function LeftPanel({ setActiveScene, setSceneGraph, setAssetsList }: any) {
+const API_BASE_URL = process.env.NEXT_PUBLIC_GAUSET_API_BASE_URL ?? "http://127.0.0.1:8000";
+const POLL_INTERVAL_MS = 1200;
+const POLL_TIMEOUT_MS = 120_000;
+
+type JobStatus = "processing" | "completed" | "failed";
+
+interface UploadResponse {
+    image_id: string;
+    filename: string;
+    filepath: string;
+}
+
+interface GenerateResponse {
+    job_id?: string;
+    scene_id?: string;
+    asset_id?: string;
+    status: JobStatus;
+}
+
+interface JobStatusResponse {
+    id: string;
+    type: "environment" | "asset";
+    status: JobStatus;
+    error?: string | null;
+    result?: {
+        scene_id?: string;
+        asset_id?: string;
+        files?: Record<string, string>;
+    } | null;
+}
+
+interface LeftPanelProps {
+    setActiveScene: (sceneId: string | null) => void;
+    setSceneGraph: React.Dispatch<React.SetStateAction<any>>;
+    setAssetsList: React.Dispatch<React.SetStateAction<any[]>>;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function pollJob(jobId: string): Promise<JobStatusResponse> {
+    const start = Date.now();
+
+    while (Date.now() - start < POLL_TIMEOUT_MS) {
+        const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`);
+        if (!response.ok) {
+            throw new Error(`Job polling failed (${response.status})`);
+        }
+
+        const payload = await response.json() as JobStatusResponse;
+        if (payload.status === "completed" || payload.status === "failed") {
+            return payload;
+        }
+
+        await sleep(POLL_INTERVAL_MS);
+    }
+
+    throw new Error("Timed out waiting for generation job to finish.");
+}
+
+export default function LeftPanel({ setActiveScene, setSceneGraph, setAssetsList }: LeftPanelProps) {
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isGeneratingEnv, setIsGeneratingEnv] = useState(false);
     const [isGeneratingAsset, setIsGeneratingAsset] = useState(false);
-    const [currentImage, setCurrentImage] = useState<string | null>(null);
+    const [uploadInfo, setUploadInfo] = useState<UploadResponse | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [statusText, setStatusText] = useState<string>("");
+    const [errorText, setErrorText] = useState<string>("");
 
-    const handleUpload = () => {
-        setIsUploading(true);
-        // Mock upload delay
-        setTimeout(() => {
-            setCurrentImage("/mock-image.jpg");
-            setIsUploading(false);
-        }, 1000);
+    useEffect(() => {
+        return () => {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+            }
+        };
+    }, [previewUrl]);
+
+    const triggerFilePicker = () => {
+        fileInputRef.current?.click();
     };
 
-    const generateEnvironment = () => {
-        if (!currentImage) return;
+    const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        setErrorText("");
+        setStatusText("");
+        setIsUploading(true);
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        setPreviewUrl(URL.createObjectURL(file));
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch(`${API_BASE_URL}/upload`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed (${response.status})`);
+            }
+
+            const payload = await response.json() as UploadResponse;
+            setUploadInfo(payload);
+            setStatusText(`Uploaded ${payload.filename}`);
+        } catch (error) {
+            setUploadInfo(null);
+            setErrorText(error instanceof Error ? error.message : "Upload failed");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const generateEnvironment = async () => {
+        if (!uploadInfo) return;
         setIsGeneratingEnv(true);
-        setTimeout(() => {
+        setErrorText("");
+        setStatusText("Generating environment...");
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/generate/environment`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image_id: uploadInfo.image_id }),
+            });
+            if (!response.ok) {
+                throw new Error(`Environment generation failed (${response.status})`);
+            }
+
+            const payload = await response.json() as GenerateResponse;
+            const jobId = payload.job_id ?? payload.scene_id;
+            if (!jobId) {
+                throw new Error("Missing job id from environment generation response.");
+            }
+
+            const finalJob = await pollJob(jobId);
+            if (finalJob.status === "failed") {
+                throw new Error(finalJob.error || "Environment generation failed.");
+            }
+
+            const sceneId = finalJob.result?.scene_id ?? payload.scene_id ?? jobId;
             setSceneGraph((prev: any) => ({
                 ...prev,
-                environment: "scene_01",
+                environment: sceneId,
             }));
-            setActiveScene("scene_01");
+            setActiveScene(sceneId);
+            setStatusText(`Environment ready: ${sceneId}`);
+        } catch (error) {
+            setErrorText(error instanceof Error ? error.message : "Environment generation failed.");
+        } finally {
             setIsGeneratingEnv(false);
-        }, 2000);
+        }
     };
 
-    const generateAsset = () => {
-        if (!currentImage) return;
+    const generateAsset = async () => {
+        if (!uploadInfo) return;
         setIsGeneratingAsset(true);
-        setTimeout(() => {
-            const newAsset = { id: `asset_${Date.now()}`, name: "Mesh Asset" };
-            setAssetsList((prev: any) => [...prev, newAsset]);
+        setErrorText("");
+        setStatusText("Generating asset...");
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/generate/asset`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image_id: uploadInfo.image_id }),
+            });
+            if (!response.ok) {
+                throw new Error(`Asset generation failed (${response.status})`);
+            }
+
+            const payload = await response.json() as GenerateResponse;
+            const jobId = payload.job_id ?? payload.asset_id;
+            if (!jobId) {
+                throw new Error("Missing job id from asset generation response.");
+            }
+
+            const finalJob = await pollJob(jobId);
+            if (finalJob.status === "failed") {
+                throw new Error(finalJob.error || "Asset generation failed.");
+            }
+
+            const assetId = finalJob.result?.asset_id ?? payload.asset_id ?? jobId;
+            const files = finalJob.result?.files ?? {};
+            const newAsset = {
+                id: assetId,
+                name: assetId,
+                mesh: files.mesh ?? "",
+                texture: files.texture ?? "",
+                preview: files.preview ?? "",
+            };
+            setAssetsList((prev: any[]) => [...prev, newAsset]);
+            setStatusText(`Asset ready: ${assetId}`);
+        } catch (error) {
+            setErrorText(error instanceof Error ? error.message : "Asset generation failed.");
+        } finally {
             setIsGeneratingAsset(false);
-        }, 2000);
+        }
     };
 
     return (
         <div className="flex flex-col h-full p-6 text-neutral-300">
             <h2 className="text-xl font-bold mb-8 text-white tracking-tight">Gauset Generator</h2>
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={handleUpload}
+            />
 
-            <div className="border-2 border-dashed border-neutral-700/50 rounded-xl p-8 mb-8 text-center hover:border-blue-500/50 hover:bg-neutral-900 transition-all cursor-pointer group" onClick={handleUpload}>
+            <div className="border-2 border-dashed border-neutral-700/50 rounded-xl p-8 mb-8 text-center hover:border-blue-500/50 hover:bg-neutral-900 transition-all cursor-pointer group" onClick={triggerFilePicker}>
                 {isUploading ? (
                     <Loader2 className="mx-auto h-8 w-8 mb-3 text-blue-500 animate-spin" />
                 ) : (
@@ -55,13 +228,19 @@ export default function LeftPanel({ setActiveScene, setSceneGraph, setAssetsList
                 <p className="text-xs text-neutral-500 mt-1">PNG, JPG up to 10MB</p>
             </div>
 
-            {currentImage && (
+            {statusText && <p className="text-xs text-emerald-400 mb-4">{statusText}</p>}
+            {errorText && <p className="text-xs text-rose-400 mb-4">{errorText}</p>}
+
+            {uploadInfo && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="bg-neutral-900 rounded-lg p-4 flex gap-4 items-center border border-neutral-800">
-                        <div className="w-12 h-12 bg-gradient-to-tr from-neutral-800 to-neutral-700 rounded object-cover shadow-inner" />
+                        <div
+                            className="w-12 h-12 bg-gradient-to-tr from-neutral-800 to-neutral-700 rounded object-cover bg-cover bg-center shadow-inner"
+                            style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                        />
                         <div className="flex-1 text-sm">
                             <p className="font-semibold text-white">Ready for Generation</p>
-                            <p className="text-xs text-neutral-400">Select pipeline below</p>
+                            <p className="text-xs text-neutral-400 truncate">{uploadInfo.filename}</p>
                         </div>
                     </div>
 
