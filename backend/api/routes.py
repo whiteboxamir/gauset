@@ -1,8 +1,9 @@
 import json
+import platform
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -27,6 +28,10 @@ jobs: Dict[str, Dict[str, Any]] = {}
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _version_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
 
 
 def _resolve_uploaded_image_path(image_id: str) -> Path:
@@ -54,13 +59,134 @@ def _asset_urls(asset_id: str) -> Dict[str, str]:
     }
 
 
+def _scene_versions_dir(scene_id: str) -> Path:
+    return SCENES_DIR / scene_id / "versions"
+
+
+def _scene_version_path(scene_id: str, version_id: str) -> Path:
+    return _scene_versions_dir(scene_id) / f"{version_id}.json"
+
+
+def _scene_comments_dir(scene_id: str) -> Path:
+    return SCENES_DIR / scene_id / "comments"
+
+
+def _scene_comments_path(scene_id: str, version_id: str) -> Path:
+    return _scene_comments_dir(scene_id) / f"{version_id}.json"
+
+
+def _scene_review_path(scene_id: str) -> Path:
+    return SCENES_DIR / scene_id / "review.json"
+
+
+def _scene_summary(scene_graph: Dict[str, Any]) -> Dict[str, Any]:
+    assets = scene_graph.get("assets") if isinstance(scene_graph, dict) else []
+    return {
+        "asset_count": len(assets) if isinstance(assets, list) else 0,
+        "has_environment": bool(scene_graph.get("environment")) if isinstance(scene_graph, dict) else False,
+    }
+
+
+def _load_version_file(path: Path) -> Dict[str, Any]:
+    with path.open() as file_handle:
+        return json.load(file_handle)
+
+
+def _load_comments(scene_id: str, version_id: str) -> List[Dict[str, Any]]:
+    comments_path = _scene_comments_path(scene_id, version_id)
+    if not comments_path.exists():
+        return []
+    with comments_path.open() as file_handle:
+        return json.load(file_handle)
+
+
+def _default_review_payload(scene_id: str) -> Dict[str, Any]:
+    return {
+        "scene_id": scene_id,
+        "metadata": {
+            "project_name": "",
+            "scene_title": "",
+            "location_name": "",
+            "owner": "",
+            "notes": "",
+        },
+        "approval": {
+            "state": "draft",
+            "updated_at": None,
+            "updated_by": None,
+            "note": "",
+            "history": [],
+        },
+    }
+
+
+def _load_review(scene_id: str) -> Dict[str, Any]:
+    review_path = _scene_review_path(scene_id)
+    if not review_path.exists():
+        return _default_review_payload(scene_id)
+    with review_path.open() as file_handle:
+        return json.load(file_handle)
+
+
+def _torch_status() -> Dict[str, Any]:
+    try:
+        import torch  # type: ignore
+
+        mps_available = bool(getattr(torch.backends, "mps", None) and torch.backends.mps.is_available())
+        return {
+            "installed": True,
+            "version": getattr(torch, "__version__", "unknown"),
+            "mps_available": mps_available,
+        }
+    except Exception as exc:  # pragma: no cover - defensive diagnostics
+        return {
+            "installed": False,
+            "version": None,
+            "mps_available": False,
+            "error": str(exc),
+        }
+
+
 class SceneSaveRequest(BaseModel):
     scene_id: str
     scene_graph: Dict[str, Any]
+    source: str = "manual"
 
 
 class GenerateRequest(BaseModel):
     image_id: str
+
+
+class VersionCommentRequest(BaseModel):
+    author: str = "Reviewer"
+    body: str
+    anchor: str = "scene"
+
+
+class SceneReviewRequest(BaseModel):
+    metadata: Dict[str, str]
+    approval_state: str
+    updated_by: str = "Reviewer"
+    note: str = ""
+
+
+@router.get("/setup/status")
+async def setup_status():
+    return {
+        "status": "ok",
+        "python_version": platform.python_version(),
+        "project_root": str(PROJECT_ROOT),
+        "directories": {
+            "uploads": UPLOADS_DIR.exists(),
+            "assets": ASSETS_DIR.exists(),
+            "scenes": SCENES_DIR.exists(),
+        },
+        "models": {
+            "ml_sharp": (PROJECT_ROOT / "backend" / "ml-sharp").exists(),
+            "triposr": (PROJECT_ROOT / "backend" / "TripoSR").exists(),
+        },
+        "torch": _torch_status(),
+    }
 
 
 @router.post("/upload")
@@ -155,7 +281,7 @@ async def generate_asset_api(request: GenerateRequest, background_tasks: Backgro
 
     def task() -> None:
         try:
-            generated_dir = Path(generate_asset(str(image_path), str(output_dir)));
+            generated_dir = Path(generate_asset(str(image_path), str(output_dir)))
             jobs[asset_id]["status"] = "completed"
             jobs[asset_id]["result"] = {
                 "asset_id": asset_id,
@@ -187,15 +313,171 @@ async def scene_save(request: SceneSaveRequest):
     scene_dir = SCENES_DIR / request.scene_id
     scene_dir.mkdir(parents=True, exist_ok=True)
 
-    filepath = scene_dir / "scene.json"
-    with filepath.open("w") as file_handle:
+    scene_path = scene_dir / "scene.json"
+    versions_dir = _scene_versions_dir(request.scene_id)
+    versions_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_at = _utc_now()
+    version_id = _version_id()
+    version_payload = {
+        "scene_id": request.scene_id,
+        "version_id": version_id,
+        "saved_at": saved_at,
+        "source": request.source,
+        "summary": _scene_summary(request.scene_graph),
+        "scene_graph": request.scene_graph,
+    }
+
+    with scene_path.open("w") as file_handle:
         json.dump(request.scene_graph, file_handle, indent=2)
+
+    version_path = _scene_version_path(request.scene_id, version_id)
+    with version_path.open("w") as file_handle:
+        json.dump(version_payload, file_handle, indent=2)
+
+    review_path = _scene_review_path(request.scene_id)
+    if not review_path.exists():
+        with review_path.open("w") as file_handle:
+            json.dump(_default_review_payload(request.scene_id), file_handle, indent=2)
 
     return {
         "status": "saved",
         "scene_id": request.scene_id,
-        "filepath": str(filepath),
+        "filepath": str(scene_path),
         "url": f"/storage/scenes/{request.scene_id}/scene.json",
+        "saved_at": saved_at,
+        "version_id": version_id,
+        "versions_url": f"/scene/{request.scene_id}/versions",
+        "summary": version_payload["summary"],
+    }
+
+
+@router.get("/scene/{scene_id}/versions")
+async def list_scene_versions(scene_id: str):
+    versions_dir = _scene_versions_dir(scene_id)
+    if not versions_dir.exists():
+        return {"scene_id": scene_id, "versions": []}
+
+    versions: List[Dict[str, Any]] = []
+    for path in sorted(versions_dir.glob("*.json"), reverse=True)[:20]:
+        payload = _load_version_file(path)
+        comment_count = len(_load_comments(scene_id, payload.get("version_id", path.stem)))
+        versions.append(
+            {
+                "version_id": payload.get("version_id", path.stem),
+                "saved_at": payload.get("saved_at"),
+                "source": payload.get("source", "manual"),
+                "summary": payload.get("summary", {}),
+                "comment_count": comment_count,
+            }
+        )
+
+    return {"scene_id": scene_id, "versions": versions}
+
+
+@router.get("/scene/{scene_id}/versions/{version_id}")
+async def get_scene_version(scene_id: str, version_id: str):
+    version_path = _scene_version_path(scene_id, version_id)
+    if not version_path.exists():
+        raise HTTPException(status_code=404, detail="Scene version not found")
+    return _load_version_file(version_path)
+
+
+@router.get("/scene/{scene_id}/review")
+async def get_scene_review(scene_id: str):
+    scene_dir = SCENES_DIR / scene_id
+    if not scene_dir.exists():
+        raise HTTPException(status_code=404, detail="Scene not found")
+    return _load_review(scene_id)
+
+
+@router.post("/scene/{scene_id}/review")
+async def upsert_scene_review(scene_id: str, request: SceneReviewRequest):
+    scene_dir = SCENES_DIR / scene_id
+    if not scene_dir.exists():
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    current_review = _load_review(scene_id)
+    approval_history = current_review.get("approval", {}).get("history", [])
+    next_approval = {
+        "state": request.approval_state,
+        "updated_at": _utc_now(),
+        "updated_by": request.updated_by.strip() or "Reviewer",
+        "note": request.note.strip(),
+        "history": approval_history,
+    }
+
+    if not approval_history or approval_history[-1].get("state") != request.approval_state or approval_history[-1].get("note") != request.note.strip():
+        next_approval["history"] = [
+            *approval_history,
+            {
+                "state": request.approval_state,
+                "updated_at": next_approval["updated_at"],
+                "updated_by": next_approval["updated_by"],
+                "note": next_approval["note"],
+            },
+        ]
+
+    review_payload = {
+        "scene_id": scene_id,
+        "metadata": {
+            "project_name": request.metadata.get("project_name", "").strip(),
+            "scene_title": request.metadata.get("scene_title", "").strip(),
+            "location_name": request.metadata.get("location_name", "").strip(),
+            "owner": request.metadata.get("owner", "").strip(),
+            "notes": request.metadata.get("notes", "").strip(),
+        },
+        "approval": next_approval,
+    }
+
+    review_path = _scene_review_path(scene_id)
+    with review_path.open("w") as file_handle:
+        json.dump(review_payload, file_handle, indent=2)
+
+    return review_payload
+
+
+@router.get("/scene/{scene_id}/versions/{version_id}/comments")
+async def list_scene_comments(scene_id: str, version_id: str):
+    version_path = _scene_version_path(scene_id, version_id)
+    if not version_path.exists():
+        raise HTTPException(status_code=404, detail="Scene version not found")
+    return {
+        "scene_id": scene_id,
+        "version_id": version_id,
+        "comments": _load_comments(scene_id, version_id),
+    }
+
+
+@router.post("/scene/{scene_id}/versions/{version_id}/comments")
+async def create_scene_comment(scene_id: str, version_id: str, request: VersionCommentRequest):
+    version_path = _scene_version_path(scene_id, version_id)
+    if not version_path.exists():
+        raise HTTPException(status_code=404, detail="Scene version not found")
+
+    comments_dir = _scene_comments_dir(scene_id)
+    comments_dir.mkdir(parents=True, exist_ok=True)
+    comments = _load_comments(scene_id, version_id)
+    comment = {
+        "comment_id": uuid.uuid4().hex,
+        "author": request.author.strip() or "Reviewer",
+        "body": request.body.strip(),
+        "anchor": request.anchor.strip() or "scene",
+        "created_at": _utc_now(),
+    }
+    if not comment["body"]:
+        raise HTTPException(status_code=400, detail="Comment body is required")
+    comments.append(comment)
+
+    comments_path = _scene_comments_path(scene_id, version_id)
+    with comments_path.open("w") as file_handle:
+        json.dump(comments, file_handle, indent=2)
+
+    return {
+        "scene_id": scene_id,
+        "version_id": version_id,
+        "comment": comment,
+        "comment_count": len(comments),
     }
 
 

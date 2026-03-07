@@ -4,8 +4,17 @@ import React from "react";
 import { Maximize2, Move3d } from "lucide-react";
 import ThreeOverlay from "./ThreeOverlay";
 
-export default function ViewerPanel({ sceneGraph, setSceneGraph }: { sceneGraph: any; setSceneGraph: any }) {
+export default function ViewerPanel({
+    sceneGraph,
+    setSceneGraph,
+    readOnly = false,
+}: {
+    sceneGraph: any;
+    setSceneGraph: any;
+    readOnly?: boolean;
+}) {
     const handleDrop = (event: React.DragEvent) => {
+        if (readOnly) return;
         event.preventDefault();
         try {
             const assetData = event.dataTransfer.getData("asset");
@@ -31,6 +40,7 @@ export default function ViewerPanel({ sceneGraph, setSceneGraph }: { sceneGraph:
     };
 
     const handleDragOver = (event: React.DragEvent) => {
+        if (readOnly) return;
         event.preventDefault();
     };
 
@@ -64,7 +74,7 @@ export default function ViewerPanel({ sceneGraph, setSceneGraph }: { sceneGraph:
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
             >
-                <ThreeOverlay sceneGraph={sceneGraph} setSceneGraph={setSceneGraph} />
+                <ThreeOverlay sceneGraph={sceneGraph} setSceneGraph={setSceneGraph} readOnly={readOnly} />
 
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-20 z-30">
                     <div className="w-8 h-[1px] bg-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>

@@ -56,20 +56,23 @@ function EnvironmentSplat({ splatUrl }: { splatUrl: string }) {
 function AssetFallbackMesh({
     asset,
     updateAssetTransform,
+    readOnly,
 }: {
     asset: SceneAsset;
     updateAssetTransform: (instanceId: string, patch: Partial<SceneAsset>) => void;
+    readOnly: boolean;
 }) {
     const [active, setActive] = useState(false);
 
     return (
         <PivotControls
-            visible={active}
+            visible={!readOnly && active}
             scale={80}
             depthTest={false}
             lineWidth={3}
             anchor={[0, 0, 0]}
             onDrag={(local) => {
+                if (readOnly) return;
                 const position = new THREE.Vector3();
                 const quaternion = new THREE.Quaternion();
                 const scale = new THREE.Vector3();
@@ -88,6 +91,7 @@ function AssetFallbackMesh({
                 rotation={parseVector3(asset.rotation, [0, 0, 0])}
                 scale={parseVector3(asset.scale, [1, 1, 1])}
                 onClick={(event) => {
+                    if (readOnly) return;
                     event.stopPropagation();
                     setActive((prev) => !prev);
                 }}
@@ -104,9 +108,11 @@ function AssetFallbackMesh({
 function GLBAsset({
     asset,
     updateAssetTransform,
+    readOnly,
 }: {
     asset: SceneAsset;
     updateAssetTransform: (instanceId: string, patch: Partial<SceneAsset>) => void;
+    readOnly: boolean;
 }) {
     const [active, setActive] = useState(false);
     const gltf = useLoader(GLTFLoader, asset.mesh || "");
@@ -114,12 +120,13 @@ function GLBAsset({
 
     return (
         <PivotControls
-            visible={active}
+            visible={!readOnly && active}
             scale={80}
             depthTest={false}
             lineWidth={3}
             anchor={[0, 0, 0]}
             onDrag={(local) => {
+                if (readOnly) return;
                 const position = new THREE.Vector3();
                 const quaternion = new THREE.Quaternion();
                 const scale = new THREE.Vector3();
@@ -138,6 +145,7 @@ function GLBAsset({
                 rotation={parseVector3(asset.rotation, [0, 0, 0])}
                 scale={parseVector3(asset.scale, [1, 1, 1])}
                 onClick={(event) => {
+                    if (readOnly) return;
                     event.stopPropagation();
                     setActive((prev) => !prev);
                 }}
@@ -151,22 +159,32 @@ function GLBAsset({
 function SceneAssetNode({
     asset,
     updateAssetTransform,
+    readOnly,
 }: {
     asset: SceneAsset;
     updateAssetTransform: (instanceId: string, patch: Partial<SceneAsset>) => void;
+    readOnly: boolean;
 }) {
     if (asset.mesh) {
         return (
             <Suspense fallback={<LoadingLabel text="Loading mesh..." />}>
-                <GLBAsset asset={asset} updateAssetTransform={updateAssetTransform} />
+                <GLBAsset asset={asset} updateAssetTransform={updateAssetTransform} readOnly={readOnly} />
             </Suspense>
         );
     }
 
-    return <AssetFallbackMesh asset={asset} updateAssetTransform={updateAssetTransform} />;
+    return <AssetFallbackMesh asset={asset} updateAssetTransform={updateAssetTransform} readOnly={readOnly} />;
 }
 
-export default function ThreeOverlay({ sceneGraph, setSceneGraph }: { sceneGraph: any; setSceneGraph: any }) {
+export default function ThreeOverlay({
+    sceneGraph,
+    setSceneGraph,
+    readOnly = false,
+}: {
+    sceneGraph: any;
+    setSceneGraph: any;
+    readOnly?: boolean;
+}) {
     const environmentSplatUrl =
         typeof sceneGraph?.environment === "object" ? sceneGraph.environment?.urls?.splats ?? "" : "";
 
@@ -214,6 +232,7 @@ export default function ThreeOverlay({ sceneGraph, setSceneGraph }: { sceneGraph
                         key={asset.instanceId || `${asset.name}-${index}`}
                         asset={asset}
                         updateAssetTransform={updateAssetTransform}
+                        readOnly={readOnly}
                     />
                 ))}
             </Canvas>
