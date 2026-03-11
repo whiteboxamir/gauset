@@ -471,6 +471,10 @@ export default function LeftPanel({
     const recommendedCaptureImages =
         captureSession?.recommended_images ?? setupStatus?.capture?.recommended_images ?? minimumCaptureImages;
     const reconstructionAvailable = Boolean(reconstructionCapability?.available);
+    const backendWritesDisabled = setupStatus?.storage?.public_write_safe === false;
+    const backendWritesDisabledMessage =
+        setupStatus?.storage?.availability_reason ??
+        "Writes are disabled until durable storage is configured for this deployment.";
     const reconstructionButtonLabel = isStartingReconstruction
         ? "Starting Reconstruction..."
         : captureSetBlocked
@@ -484,7 +488,7 @@ export default function LeftPanel({
             : "mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-medium text-neutral-400 transition-all disabled:opacity-60";
 
     const triggerFilePicker = () => {
-        if (backendMode === "offline") return;
+        if (backendMode === "offline" || backendWritesDisabled) return;
         fileInputRef.current?.click();
     };
 
@@ -519,6 +523,10 @@ export default function LeftPanel({
         const files = Array.from(event.target.files ?? []);
         event.target.value = "";
         if (files.length === 0) return;
+        if (backendWritesDisabled) {
+            setErrorText(backendWritesDisabledMessage);
+            return;
+        }
 
         setErrorText("");
         setStatusText("");
@@ -706,6 +714,10 @@ export default function LeftPanel({
     };
 
     const generateImage = async ({ autoPreview }: { autoPreview: boolean }) => {
+        if (backendWritesDisabled) {
+            setErrorText(backendWritesDisabledMessage);
+            return;
+        }
         const prompt = generatePrompt.trim();
         if (!selectedProvider || !selectedProviderModel) {
             setErrorText("No provider is ready for image generation.");
@@ -845,6 +857,10 @@ export default function LeftPanel({
 
     const generatePreview = async () => {
         if (!selectedUpload) return;
+        if (backendWritesDisabled) {
+            setErrorText(backendWritesDisabledMessage);
+            return;
+        }
         if (previewGenerationLockRef.current) {
             setStatusText("World preview already running.");
             return;
@@ -879,6 +895,10 @@ export default function LeftPanel({
 
     const generateAsset = async () => {
         if (!selectedUpload) return;
+        if (backendWritesDisabled) {
+            setErrorText(backendWritesDisabledMessage);
+            return;
+        }
         if (assetGenerationLockRef.current) {
             setStatusText("3D asset extraction already running.");
             return;
@@ -989,6 +1009,9 @@ export default function LeftPanel({
     };
 
     const ensureCaptureSession = async () => {
+        if (backendWritesDisabled) {
+            throw new Error(backendWritesDisabledMessage);
+        }
         if (captureSession) return captureSession;
 
         const response = await fetch(`${MVP_API_BASE_URL}/capture/session`, {
@@ -1007,6 +1030,10 @@ export default function LeftPanel({
 
     const addSelectedToCaptureSet = async () => {
         if (!selectedUpload) return;
+        if (backendWritesDisabled) {
+            setErrorText(backendWritesDisabledMessage);
+            return;
+        }
 
         setIsUpdatingCapture(true);
         setErrorText("");
@@ -1051,6 +1078,10 @@ export default function LeftPanel({
 
     const startReconstruction = async () => {
         if (!captureSession) return;
+        if (backendWritesDisabled) {
+            setErrorText(backendWritesDisabledMessage);
+            return;
+        }
 
         setIsStartingReconstruction(true);
         setErrorText("");
@@ -1503,7 +1534,7 @@ export default function LeftPanel({
             {intakeMode === "import" ? (
                 <div
                     className={`mb-5 rounded-[24px] border p-5 transition-all group shadow-[0_16px_36px_rgba(0,0,0,0.2)] ${
-                        backendMode === "offline"
+                        backendMode === "offline" || backendWritesDisabled
                             ? "border-white/10 bg-black/30 cursor-not-allowed opacity-75"
                             : "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] hover:border-sky-400/35 hover:bg-white/[0.05] cursor-pointer"
                     }`}
@@ -1515,16 +1546,20 @@ export default function LeftPanel({
                             <p className="mt-3 text-xl font-medium tracking-tight text-white group-hover:text-sky-100">
                                 {backendMode === "offline"
                                     ? "Reconnect local services"
-                                    : isUploading
-                                      ? "Importing scout stills"
-                                      : "Bring in scout stills"}
+                                    : backendWritesDisabled
+                                      ? "Uploads safety-disabled"
+                                      : isUploading
+                                        ? "Importing scout stills"
+                                        : "Bring in scout stills"}
                             </p>
                             <p className="mt-2 text-sm leading-6 text-neutral-400">
                                 {backendMode === "offline"
                                     ? "Reconnect the local backend first so this workspace can intake stills and build scenes."
-                                    : reconstructionAvailable
-                                      ? "Use one frame for preview or asset work, or drop in a small orbit set for reconstruction."
-                                      : "Use one frame for preview or asset work, or prepare an orbit set while reconstruction comes online."}
+                                    : backendWritesDisabled
+                                      ? backendWritesDisabledMessage
+                                      : reconstructionAvailable
+                                        ? "Use one frame for preview or asset work, or drop in a small orbit set for reconstruction."
+                                        : "Use one frame for preview or asset work, or prepare an orbit set while reconstruction comes online."}
                             </p>
                         </div>
                         {isUploading ? (
@@ -1541,7 +1576,7 @@ export default function LeftPanel({
                     </div>
 
                     <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-neutral-200">
-                        {backendMode === "offline" ? "Backend required" : "Import scout stills"}
+                        {backendMode === "offline" ? "Backend required" : backendWritesDisabled ? "Uploads disabled" : "Import scout stills"}
                         <ArrowRight className="h-3.5 w-3.5" />
                     </div>
                 </div>
@@ -1861,6 +1896,7 @@ export default function LeftPanel({
                                 onClick={() => void generateImage({ autoPreview: false })}
                                 disabled={
                                     backendMode === "offline" ||
+                                    backendWritesDisabled ||
                                     isGeneratingImage ||
                                     providersLoading ||
                                     !providerGenerationEnabled ||
@@ -1877,6 +1913,7 @@ export default function LeftPanel({
                                 onClick={() => void generateImage({ autoPreview: true })}
                                 disabled={
                                     backendMode === "offline" ||
+                                    backendWritesDisabled ||
                                     isGeneratingImage ||
                                     providersLoading ||
                                     !providerGenerationEnabled ||
@@ -1997,7 +2034,7 @@ export default function LeftPanel({
                     <div className="space-y-3">
                         <button
                             onClick={generatePreview}
-                            disabled={!selectedUpload || isGeneratingPreview || isGeneratingAsset || backendMode === "offline" || !previewCapability?.available}
+                            disabled={!selectedUpload || isGeneratingPreview || isGeneratingAsset || backendMode === "offline" || backendWritesDisabled || !previewCapability?.available}
                             className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:hover:bg-emerald-500 shadow-lg shadow-emerald-950/20"
                         >
                             {isGeneratingPreview ? <Loader2 className="animate-spin h-5 w-5" /> : <ImageIcon className="h-5 w-5" />}
@@ -2006,7 +2043,7 @@ export default function LeftPanel({
 
                         <button
                             onClick={generateAsset}
-                            disabled={!selectedUpload || isGeneratingPreview || isGeneratingAsset || backendMode === "offline" || !assetCapability?.available}
+                            disabled={!selectedUpload || isGeneratingPreview || isGeneratingAsset || backendMode === "offline" || backendWritesDisabled || !assetCapability?.available}
                             className="w-full py-3.5 px-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-black font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:hover:bg-sky-500 shadow-lg shadow-sky-950/20"
                         >
                             {isGeneratingAsset ? <Loader2 className="animate-spin h-5 w-5" /> : <Box className="h-5 w-5" />}
@@ -2015,7 +2052,7 @@ export default function LeftPanel({
 
                         <button
                             onClick={addSelectedToCaptureSet}
-                            disabled={!selectedUpload || isUpdatingCapture || backendMode === "offline"}
+                            disabled={!selectedUpload || isUpdatingCapture || backendMode === "offline" || backendWritesDisabled}
                             className="w-full py-3.5 px-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium flex items-center justify-center gap-2 transition-all border border-white/10 disabled:opacity-50 disabled:hover:bg-white/[0.04]"
                         >
                             {isUpdatingCapture ? <Loader2 className="animate-spin h-5 w-5" /> : <Upload className="h-5 w-5" />}

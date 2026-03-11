@@ -863,15 +863,8 @@ export default function ThreeOverlay({
 
     const handleEnvironmentFatalError = React.useCallback(
         (message: string, reason: ViewerFallbackReason) => {
-            const normalizedMessage = message.trim().toLowerCase();
-            if (
-                reason === "texture_size_exceeded" ||
-                reason === "context_lost" ||
-                normalizedMessage.includes("webgl2") ||
-                normalizedMessage.includes("ext_color_buffer_float")
-            ) {
-                activateViewerFallback(message);
-            }
+            void reason;
+            activateViewerFallback(message);
         },
         [activateViewerFallback],
     );
