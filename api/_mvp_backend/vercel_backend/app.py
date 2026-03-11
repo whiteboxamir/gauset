@@ -151,6 +151,39 @@ def _storage_backend() -> StorageBackend:
 
 STORAGE = _storage_backend()
 
+PUBLIC_WRITE_STORAGE_CHECKLIST = [
+    "Configure BLOB_READ_WRITE_TOKEN for this public deployment.",
+    "Redeploy the public MVP backend so uploads, scenes, and generated assets persist durably.",
+    "Verify /api/mvp/setup/status reports storage_mode=blob before re-enabling write lanes.",
+]
+
+
+def _public_storage_write_safe() -> bool:
+    return STORAGE.mode() == "blob"
+
+
+def _public_storage_block_reason() -> str:
+    return (
+        "Public MVP writes are disabled because this deployment is using filesystem storage. "
+        "Configure durable blob storage before enabling uploads, preview generation, asset extraction, "
+        "capture sessions, scene saves, reviews, or comments."
+    )
+
+
+def _public_storage_summary() -> str:
+    if _public_storage_write_safe():
+        return "Durable blob storage is configured for public MVP uploads, scenes, and generated assets."
+    return (
+        "Filesystem storage is not durable on the public MVP deployment, so write lanes are safety-disabled "
+        "until blob storage is configured."
+    )
+
+
+def _require_public_write_storage() -> None:
+    if _public_storage_write_safe():
+        return
+    raise HTTPException(status_code=503, detail=_public_storage_block_reason())
+
 CAPTURE_MIN_IMAGES = 8
 CAPTURE_RECOMMENDED_IMAGES = 12
 CAPTURE_MAX_IMAGES = 32
@@ -1497,41 +1530,65 @@ async def setup_status() -> Dict[str, Any]:
     provider_summary = get_provider_registry().image_provider_summary()
     environment_bridge = get_environment_bridge_registry().status_payload()
     bridge_available = bool(environment_bridge.get("available"))
+    public_write_safe = _public_storage_write_safe()
+    preview_available = public_write_safe
+    asset_available = public_write_safe
     preview_summary = (
         "Generate a dense single-image Gaussian preview through the ML-Sharp GPU worker."
-        if bridge_available
+        if public_write_safe and bridge_available
         else "Generate a single-photo Gaussian preview for nearby camera moves."
     )
+    if not public_write_safe:
+        preview_summary = "Preview writes are disabled until durable blob storage is configured for this public deployment."
     preview_truth = (
         "This output is produced by a single-image Gaussian model through a dedicated GPU worker. Hidden geometry can still be hallucinated."
-        if bridge_available
+        if public_write_safe and bridge_available
         else "This output is a synthesized preview, not a faithful multi-view reconstruction."
     )
+    asset_summary = "Generate a hero prop mesh from one reference image."
+    asset_truth = "This lane is object-focused generation, not environment reconstruction."
+    if not public_write_safe:
+        asset_summary = "Asset extraction is disabled until durable blob storage is configured for this public deployment."
+        asset_truth = "This lane is safety-disabled because generated files cannot persist durably in the current public storage mode."
     backend_truth = (
         "This deployment dispatches single-image preview jobs to a dedicated ML-Sharp GPU worker and stores the resulting Gaussian splats locally."
-        if bridge_available
+        if public_write_safe and bridge_available
         else "This deployment provides single-photo preview and asset generation. Production-grade multi-view Gaussian reconstruction requires a separate GPU worker."
     )
+    if not public_write_safe:
+        backend_truth = _public_storage_block_reason()
     return {
         "status": "ok",
         "python_version": os.sys.version.split()[0],
         "backend": {
             "label": "Production Preview Backend",
-            "kind": "image-to-splat-bridge-and-asset" if bridge_available else "single-image-preview-and-asset",
+            "kind": (
+                "image-to-splat-bridge-and-asset"
+                if public_write_safe and bridge_available
+                else "single-image-preview-and-asset"
+                if public_write_safe
+                else "public-preview-read-only-safety-mode"
+            ),
             "deployment": "vercel",
             "truth": backend_truth,
-            "lane_truth": "public_single_image_lrm_and_asset_only" if bridge_available else "public_preview_and_asset_only",
+            "lane_truth": (
+                "public_single_image_lrm_and_asset_only"
+                if public_write_safe and bridge_available
+                else "public_preview_and_asset_only"
+                if public_write_safe
+                else "public_write_lanes_disabled_unsafe_storage"
+            ),
         },
         "lane_truth": {
-            "preview": "single_image_lrm_preview" if bridge_available else "preview_only_single_image",
+            "preview": "single_image_lrm_preview" if public_write_safe and bridge_available else "preview_only_single_image",
             "reconstruction": "gpu_worker_not_connected",
             "asset": "single_image_asset",
         },
         "reconstruction_backend": {
-            "name": "ml_sharp_gpu_worker" if bridge_available else "gpu_worker_missing",
-            "kind": "remote_single_image_gaussian_worker" if bridge_available else "unavailable_in_public_preview_backend",
-            "gpu_worker_connected": bridge_available,
-            "native_gaussian_training": bridge_available,
+            "name": "ml_sharp_gpu_worker" if public_write_safe and bridge_available else "gpu_worker_missing",
+            "kind": "remote_single_image_gaussian_worker" if public_write_safe and bridge_available else "unavailable_in_public_preview_backend",
+            "gpu_worker_connected": public_write_safe and bridge_available,
+            "native_gaussian_training": public_write_safe and bridge_available,
             "world_class_ready": False,
         },
         "benchmark_status": {
@@ -1541,18 +1598,19 @@ async def setup_status() -> Dict[str, Any]:
         },
         "release_gates": {
             "truthful_preview_lane": True,
-            "gpu_reconstruction_connected": bridge_available,
-            "native_gaussian_training": bridge_available,
+            "gpu_reconstruction_connected": public_write_safe and bridge_available,
+            "native_gaussian_training": public_write_safe and bridge_available,
             "holdout_metrics": False,
             "market_benchmarking": False,
+            "durable_public_storage": public_write_safe,
         },
         "capabilities": {
             "preview": {
-                "available": True,
-                "label": "Image-to-Splat Preview" if bridge_available else "Instant Preview",
+                "available": preview_available,
+                "label": "Image-to-Splat Preview" if public_write_safe and bridge_available else "Instant Preview",
                 "summary": preview_summary,
                 "truth": preview_truth,
-                "lane_truth": "single_image_lrm_preview" if bridge_available else "preview_only_single_image",
+                "lane_truth": "single_image_lrm_preview" if public_write_safe and bridge_available else "preview_only_single_image",
                 "input_strategy": "1 photo",
                 "min_images": 1,
                 "recommended_images": 1,
@@ -1568,10 +1626,10 @@ async def setup_status() -> Dict[str, Any]:
                 "recommended_images": CAPTURE_RECOMMENDED_IMAGES,
             },
             "asset": {
-                "available": True,
+                "available": asset_available,
                 "label": "Single-Image Asset",
-                "summary": "Generate a hero prop mesh from one reference image.",
-                "truth": "This lane is object-focused generation, not environment reconstruction.",
+                "summary": asset_summary,
+                "truth": asset_truth,
                 "lane_truth": "single_image_asset",
                 "input_strategy": "1 photo",
                 "min_images": 1,
@@ -1585,6 +1643,15 @@ async def setup_status() -> Dict[str, Any]:
             "guidance": _capture_guidance(),
         },
         "storage_mode": STORAGE.mode(),
+        "storage": {
+            "mode": STORAGE.mode(),
+            "durable": public_write_safe,
+            "public_write_safe": public_write_safe,
+            "summary": _public_storage_summary(),
+            "availability_reason": None if public_write_safe else _public_storage_block_reason(),
+            "required_env": [] if public_write_safe else ["BLOB_READ_WRITE_TOKEN"],
+            "checklist": PUBLIC_WRITE_STORAGE_CHECKLIST,
+        },
         "generator": {
             "environment": "ml_sharp_gpu_worker" if bridge_available else "gauset-depth-synth-v1",
             "asset": "gauset-relief-mesh-v1",
@@ -1622,6 +1689,7 @@ async def list_generation_providers() -> Dict[str, Any]:
 
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)) -> Dict[str, Any]:
+    _require_public_write_storage()
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename in upload")
 
@@ -1638,6 +1706,7 @@ async def upload_image(file: UploadFile = File(...)) -> Dict[str, Any]:
 
 @app.post("/generate/image")
 async def generate_image(request: GenerateImageRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     prompt = request.prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required")
@@ -1756,6 +1825,7 @@ async def generate_image(request: GenerateImageRequest) -> Dict[str, Any]:
 
 @app.post("/generate/environment")
 async def generate_environment(request: GenerateRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     scene_id = f"scene_{str(uuid.uuid4())[:8]}"
     job_payload = {
         "id": scene_id,
@@ -1846,6 +1916,7 @@ async def generate_environment(request: GenerateRequest) -> Dict[str, Any]:
 
 @app.post("/generate/asset")
 async def generate_asset(request: GenerateRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     asset_id = f"asset_{str(uuid.uuid4())[:8]}"
     job_payload = {
         "id": asset_id,
@@ -1899,6 +1970,7 @@ async def generate_asset(request: GenerateRequest) -> Dict[str, Any]:
 
 @app.post("/capture/session")
 async def create_capture_session(request: CaptureSessionCreateRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     payload = _capture_session_payload(request.target_images)
     _save_capture_session(payload)
     return payload
@@ -1911,6 +1983,7 @@ async def get_capture_session(session_id: str) -> Dict[str, Any]:
 
 @app.post("/capture/session/{session_id}/frames")
 async def add_capture_frames(session_id: str, request: CaptureSessionFramesRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     if not request.image_ids:
         raise HTTPException(status_code=400, detail="At least one uploaded image is required")
 
@@ -1944,6 +2017,7 @@ async def add_capture_frames(session_id: str, request: CaptureSessionFramesReque
 
 @app.post("/reconstruct/session/{session_id}")
 async def start_reconstruction(session_id: str) -> Dict[str, Any]:
+    _require_public_write_storage()
     payload = _load_capture_session(session_id)
     if not payload.get("ready_for_reconstruction"):
         raise HTTPException(
@@ -1972,6 +2046,7 @@ async def job_status(job_id: str) -> Dict[str, Any]:
 
 @app.post("/scene/save")
 async def save_scene(request: SceneSaveRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     scene_graph = _normalize_scene_graph(request.scene_graph)
     saved_at = _utc_now()
     version_id = _version_id()
@@ -2040,6 +2115,7 @@ async def get_scene_review(scene_id: str) -> Dict[str, Any]:
 
 @app.post("/scene/{scene_id}/review")
 async def upsert_scene_review(scene_id: str, request: SceneReviewRequest) -> Dict[str, Any]:
+    _require_public_write_storage()
     if not _scene_exists(scene_id):
         raise HTTPException(status_code=404, detail="Scene not found")
 
@@ -2094,6 +2170,7 @@ async def create_scene_comment(
     version_id: str,
     request: VersionCommentRequest,
 ) -> Dict[str, Any]:
+    _require_public_write_storage()
     _load_version_payload(scene_id, version_id)
     comment = {
         "comment_id": uuid.uuid4().hex,
