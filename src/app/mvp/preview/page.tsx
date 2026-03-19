@@ -29,7 +29,7 @@ export default async function MVPPreviewPage({
     const launchProviderId = normalizeLaunchText(params.provider, 120);
     const launchSourceKind = normalizeLaunchSourceKind(params.source_kind);
     const directProjectWorkspaceEntry = Boolean(launchProjectId) && !launchSceneId;
-    const resolvedLaunchEntryMode = launchEntryMode ?? (directProjectWorkspaceEntry ? "workspace" : null);
+    const resolvedLaunchEntryMode = launchEntryMode;
     const previewSearchParams = new URLSearchParams();
     if (launchSceneId) {
         previewSearchParams.set("scene", launchSceneId);
@@ -55,7 +55,7 @@ export default async function MVPPreviewPage({
     if (resolvedLaunchEntryMode) {
         previewSearchParams.set("entry", resolvedLaunchEntryMode);
     }
-    const canonicalProjectPreviewPath = `/mvp/preview?${previewSearchParams.toString()}`;
+    const canonicalProjectPreviewPath = previewSearchParams.size > 0 ? `/mvp/preview?${previewSearchParams.toString()}` : "/mvp/preview";
     if (launchSceneId) {
         redirect(`/mvp?${previewSearchParams.toString()}`);
     }
