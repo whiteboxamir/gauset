@@ -1,0 +1,15 @@
+.git
+.next
+.next-local
+.next_broken_*
+node_modules
+node_modules_*
+backend
+backend_venv
+backend_venv_broken_*
+assets
+uploads
+scenes
+scripts
+gauset.db
+api/_mvp_backend

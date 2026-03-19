@@ -30,6 +30,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# python bytecode
+__pycache__/
+*.pyc
+
 # local development artifacts
 .next-local/
 .next_broken_*/

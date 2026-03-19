@@ -17,9 +17,9 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import trimesh
 from PIL import Image, ImageOps
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from .config_env import load_local_env_files
@@ -68,6 +68,13 @@ class StorageBackend:
         raise NotImplementedError
 
 
+class StorageBackendError(RuntimeError):
+    def __init__(self, detail: str, *, status_code: int = 503) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.status_code = status_code
+
+
 class LocalStorageBackend(StorageBackend):
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -114,7 +121,10 @@ class BlobStorageBackend(StorageBackend):
         return f"{self.base_url}/{encoded_path}{suffix}"
 
     def write_bytes(self, path: str, data: bytes) -> None:
-        vercel_blob.put(path, data, {"allowOverwrite": True}, verbose=False)
+        try:
+            vercel_blob.put(path, data, {"allowOverwrite": True}, verbose=False)
+        except Exception as exc:
+            raise StorageBackendError(f"Blob storage write failed: {exc}", status_code=502) from exc
 
     def read_bytes(self, path: str) -> bytes:
         request = urllib.request.Request(self._blob_url(path, fresh=True), method="GET")
@@ -124,7 +134,12 @@ class BlobStorageBackend(StorageBackend):
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 raise FileNotFoundError(path) from exc
-            raise
+            raise StorageBackendError(
+                f"Blob storage read failed ({exc.code}): {exc.reason or 'request failed'}",
+                status_code=502,
+            ) from exc
+        except Exception as exc:
+            raise StorageBackendError(f"Blob storage read failed: {exc}", status_code=502) from exc
 
     def exists(self, path: str) -> bool:
         try:
@@ -140,16 +155,26 @@ class BlobStorageBackend(StorageBackend):
         return "blob"
 
 
-def _storage_backend() -> StorageBackend:
-    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN", "").strip()
-    if blob_token:
-        return BlobStorageBackend()
+class UnavailableStorageBackend(StorageBackend):
+    def __init__(self, mode: str, detail: str) -> None:
+        self._mode = mode
+        self.detail = detail
 
-    local_root = Path(os.getenv("GAUSET_MVP_STORAGE_ROOT", "/tmp/gauset-mvp-storage")).resolve()
-    return LocalStorageBackend(local_root)
+    def _raise(self) -> None:
+        raise StorageBackendError(self.detail, status_code=503)
 
+    def write_bytes(self, path: str, data: bytes) -> None:
+        self._raise()
 
-STORAGE = _storage_backend()
+    def read_bytes(self, path: str) -> bytes:
+        self._raise()
+
+    def exists(self, path: str) -> bool:
+        self._raise()
+
+    def mode(self) -> str:
+        return self._mode
+
 
 PUBLIC_WRITE_STORAGE_CHECKLIST = [
     "Configure BLOB_READ_WRITE_TOKEN for this public deployment.",
@@ -157,32 +182,158 @@ PUBLIC_WRITE_STORAGE_CHECKLIST = [
     "Verify /api/mvp/setup/status reports storage_mode=blob before re-enabling write lanes.",
 ]
 
+PUBLIC_WRITE_STORAGE_ERROR_CHECKLIST = [
+    "Confirm the blob storage runtime is installed and the configured token is valid for this deployment.",
+    "Fix the blob storage initialization failure and redeploy the public MVP backend.",
+    "Verify /api/mvp/setup/status reports storage_mode=blob before re-enabling write lanes.",
+]
+
+
+def _storage_backend() -> tuple[StorageBackend, Dict[str, Any]]:
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN", "").strip()
+    if blob_token:
+        try:
+            backend = BlobStorageBackend()
+        except Exception as exc:
+            detail = f"Public MVP writes are disabled because configured blob storage is unavailable in this deployment: {exc}"
+            return (
+                UnavailableStorageBackend("unavailable", detail),
+                {
+                    "mode": "unavailable",
+                    "configured_mode": "blob",
+                    "runtime_status": "error",
+                    "durable": False,
+                    "public_write_safe": False,
+                    "summary": (
+                        "Blob storage is configured for this public deployment, but initialization failed, "
+                        "so write lanes stay safety-disabled until that runtime issue is fixed."
+                    ),
+                    "availability_reason": detail,
+                    "required_env": [],
+                    "checklist": PUBLIC_WRITE_STORAGE_ERROR_CHECKLIST,
+                    "initialization_error": str(exc),
+                },
+            )
+        return (
+            backend,
+            {
+                "mode": "blob",
+                "configured_mode": "blob",
+                "runtime_status": "ready",
+                "durable": True,
+                "public_write_safe": True,
+                "summary": "Durable blob storage is configured for public MVP uploads, scenes, and generated assets.",
+                "availability_reason": None,
+                "required_env": [],
+                "checklist": PUBLIC_WRITE_STORAGE_CHECKLIST,
+                "initialization_error": None,
+            },
+        )
+
+    local_root = Path(os.getenv("GAUSET_MVP_STORAGE_ROOT", "/tmp/gauset-mvp-storage")).resolve()
+    return (
+        LocalStorageBackend(local_root),
+        {
+            "mode": "filesystem",
+            "configured_mode": "filesystem",
+            "runtime_status": "ready",
+            "durable": False,
+            "public_write_safe": False,
+            "summary": (
+                "Filesystem storage is not durable on the public MVP deployment, so write lanes are safety-disabled "
+                "until blob storage is configured."
+            ),
+            "availability_reason": (
+                "Public MVP writes are disabled because this deployment is using filesystem storage. "
+                "Configure durable blob storage before enabling uploads, preview generation, asset extraction, "
+                "capture sessions, scene saves, reviews, or comments."
+            ),
+            "required_env": ["BLOB_READ_WRITE_TOKEN"],
+            "checklist": PUBLIC_WRITE_STORAGE_CHECKLIST,
+            "initialization_error": None,
+        },
+    )
+
+
+STORAGE, STORAGE_STATUS = _storage_backend()
+
 
 def _public_storage_write_safe() -> bool:
-    return STORAGE.mode() == "blob"
+    return bool(STORAGE_STATUS["public_write_safe"])
 
 
 def _public_storage_block_reason() -> str:
-    return (
-        "Public MVP writes are disabled because this deployment is using filesystem storage. "
-        "Configure durable blob storage before enabling uploads, preview generation, asset extraction, "
-        "capture sessions, scene saves, reviews, or comments."
-    )
+    return str(STORAGE_STATUS["availability_reason"] or "Public MVP writes are disabled in this deployment.")
 
 
-def _public_storage_summary() -> str:
-    if _public_storage_write_safe():
-        return "Durable blob storage is configured for public MVP uploads, scenes, and generated assets."
-    return (
-        "Filesystem storage is not durable on the public MVP deployment, so write lanes are safety-disabled "
-        "until blob storage is configured."
-    )
+def _storage_status_payload() -> Dict[str, Any]:
+    return {
+        "mode": STORAGE_STATUS["mode"],
+        "configured_mode": STORAGE_STATUS["configured_mode"],
+        "runtime_status": STORAGE_STATUS["runtime_status"],
+        "durable": STORAGE_STATUS["durable"],
+        "public_write_safe": STORAGE_STATUS["public_write_safe"],
+        "summary": STORAGE_STATUS["summary"],
+        "availability_reason": STORAGE_STATUS["availability_reason"],
+        "required_env": list(STORAGE_STATUS["required_env"]),
+        "checklist": list(STORAGE_STATUS["checklist"]),
+        "initialization_error": STORAGE_STATUS["initialization_error"],
+    }
 
 
 def _require_public_write_storage() -> None:
     if _public_storage_write_safe():
         return
     raise HTTPException(status_code=503, detail=_public_storage_block_reason())
+
+
+def _normalize_host(value: Optional[str]) -> str:
+    normalized = str(value or "").strip()
+    if normalized.startswith("http://"):
+        normalized = normalized[7:]
+    elif normalized.startswith("https://"):
+        normalized = normalized[8:]
+    return normalized.rstrip("/")
+
+
+def _shorten_sha(value: Optional[str]) -> str:
+    normalized = str(value or "").strip()
+    return normalized[:7] if normalized else "no-sha"
+
+
+def _deployment_fingerprint() -> Dict[str, str]:
+    commit_sha = (
+        os.getenv("VERCEL_GIT_COMMIT_SHA", "").strip()
+        or os.getenv("GIT_COMMIT_SHA", "").strip()
+        or os.getenv("NEXT_PUBLIC_GIT_COMMIT_SHA", "").strip()
+    )
+    commit_ref = (
+        os.getenv("VERCEL_GIT_COMMIT_REF", "").strip()
+        or os.getenv("GIT_BRANCH", "").strip()
+        or os.getenv("NEXT_PUBLIC_GIT_COMMIT_REF", "").strip()
+    )
+    vercel_env = os.getenv("VERCEL_ENV", "").strip()
+    deployment_host = (
+        _normalize_host(os.getenv("VERCEL_PROJECT_PRODUCTION_URL"))
+        or _normalize_host(os.getenv("VERCEL_URL"))
+        or _normalize_host(os.getenv("NEXT_PUBLIC_VERCEL_URL"))
+        or _normalize_host(os.getenv("NEXT_PUBLIC_GAUSET_APP_HOST"))
+        or "local"
+    )
+    deployment_id = os.getenv("VERCEL_DEPLOYMENT_ID", "").strip()
+    runtime_target = "vercel" if os.getenv("VERCEL") == "1" else "local-production" if os.getenv("NODE_ENV") == "production" else "local-development"
+    commit_short = _shorten_sha(commit_sha)
+    build_label = " · ".join(part for part in [deployment_host, vercel_env or runtime_target, commit_short] if part)
+    return {
+        "build_label": build_label,
+        "commit_ref": commit_ref,
+        "commit_sha": commit_sha,
+        "commit_short": commit_short,
+        "deployment_host": deployment_host,
+        "deployment_id": deployment_id,
+        "runtime_target": runtime_target,
+        "vercel_env": vercel_env,
+    }
 
 CAPTURE_MIN_IMAGES = 8
 CAPTURE_RECOMMENDED_IMAGES = 12
@@ -1505,6 +1656,14 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(StorageBackendError)
+async def handle_storage_backend_error(request: Request, exc: StorageBackendError) -> Response:
+    scope_path = str(request.scope.get("path") or "")
+    if scope_path.startswith("/storage/"):
+        return Response(content=exc.detail, media_type="text/plain", status_code=exc.status_code)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
 @app.middleware("http")
 async def strip_vercel_api_prefix(request, call_next):
     path = request.scope.get("path", "")
@@ -1525,6 +1684,11 @@ async def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/deployment")
+async def deployment() -> Dict[str, Any]:
+    return {"status": "ok", "fingerprint": _deployment_fingerprint()}
+
+
 @app.get("/setup/status")
 async def setup_status() -> Dict[str, Any]:
     provider_summary = get_provider_registry().image_provider_summary()
@@ -1539,7 +1703,7 @@ async def setup_status() -> Dict[str, Any]:
         else "Generate a single-photo Gaussian preview for nearby camera moves."
     )
     if not public_write_safe:
-        preview_summary = "Preview writes are disabled until durable blob storage is configured for this public deployment."
+        preview_summary = "Preview writes are disabled until durable blob storage is operational for this public deployment."
     preview_truth = (
         "This output is produced by a single-image Gaussian model through a dedicated GPU worker. Hidden geometry can still be hallucinated."
         if public_write_safe and bridge_available
@@ -1548,10 +1712,10 @@ async def setup_status() -> Dict[str, Any]:
     asset_summary = "Generate a hero prop mesh from one reference image."
     asset_truth = "This lane is object-focused generation, not environment reconstruction."
     if not public_write_safe:
-        asset_summary = "Asset extraction is disabled until durable blob storage is configured for this public deployment."
+        asset_summary = "Asset extraction is disabled until durable blob storage is operational for this public deployment."
         asset_truth = "This lane is safety-disabled because generated files cannot persist durably in the current public storage mode."
     backend_truth = (
-        "This deployment dispatches single-image preview jobs to a dedicated ML-Sharp GPU worker and stores the resulting Gaussian splats locally."
+        "This deployment dispatches single-image preview jobs to a dedicated ML-Sharp GPU worker and stores the resulting Gaussian splats in durable public blob storage."
         if public_write_safe and bridge_available
         else "This deployment provides single-photo preview and asset generation. Production-grade multi-view Gaussian reconstruction requires a separate GPU worker."
     )
@@ -1585,10 +1749,10 @@ async def setup_status() -> Dict[str, Any]:
             "asset": "single_image_asset",
         },
         "reconstruction_backend": {
-            "name": "ml_sharp_gpu_worker" if public_write_safe and bridge_available else "gpu_worker_missing",
-            "kind": "remote_single_image_gaussian_worker" if public_write_safe and bridge_available else "unavailable_in_public_preview_backend",
-            "gpu_worker_connected": public_write_safe and bridge_available,
-            "native_gaussian_training": public_write_safe and bridge_available,
+            "name": "gpu_worker_missing",
+            "kind": "unavailable_in_public_preview_backend",
+            "gpu_worker_connected": False,
+            "native_gaussian_training": False,
             "world_class_ready": False,
         },
         "benchmark_status": {
@@ -1597,9 +1761,9 @@ async def setup_status() -> Dict[str, Any]:
             "summary": "The public preview deployment is not benchmarked as a real-space reconstruction system.",
         },
         "release_gates": {
-            "truthful_preview_lane": True,
-            "gpu_reconstruction_connected": public_write_safe and bridge_available,
-            "native_gaussian_training": public_write_safe and bridge_available,
+            "truthful_preview_lane": preview_available,
+            "gpu_reconstruction_connected": False,
+            "native_gaussian_training": False,
             "holdout_metrics": False,
             "market_benchmarking": False,
             "durable_public_storage": public_write_safe,
@@ -1642,16 +1806,8 @@ async def setup_status() -> Dict[str, Any]:
             "max_images": CAPTURE_MAX_IMAGES,
             "guidance": _capture_guidance(),
         },
-        "storage_mode": STORAGE.mode(),
-        "storage": {
-            "mode": STORAGE.mode(),
-            "durable": public_write_safe,
-            "public_write_safe": public_write_safe,
-            "summary": _public_storage_summary(),
-            "availability_reason": None if public_write_safe else _public_storage_block_reason(),
-            "required_env": [] if public_write_safe else ["BLOB_READ_WRITE_TOKEN"],
-            "checklist": PUBLIC_WRITE_STORAGE_CHECKLIST,
-        },
+        "storage_mode": STORAGE_STATUS["mode"],
+        "storage": _storage_status_payload(),
         "generator": {
             "environment": "ml_sharp_gpu_worker" if bridge_available else "gauset-depth-synth-v1",
             "asset": "gauset-relief-mesh-v1",

@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "mvp:preflight": "node scripts/mvp_release_preflight.mjs",
+    "mvp:canary": "node scripts/mvp_public_canary.mjs",
+    "mvp:release-check": "npm run mvp:preflight && npm run mvp:canary"
   },
   "dependencies": {
     "@lumaai/luma-web": "^0.2.2",
