@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/verify_waitlist_supabase_env.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "mvp:preflight": "node scripts/mvp_release_preflight.mjs",
@@ -17,6 +17,7 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@react-three/postprocessing": "^3.0.4",
+    "@vercel/blob": "^2.3.1",
     "better-sqlite3": "^12.6.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.0",
