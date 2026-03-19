@@ -1,6 +1,7 @@
 "use client";
 
 import type { GeneratedEnvironmentMetadata } from "@/lib/mvp-product";
+import { isLikelySharpGaussianManifestSource } from "@/lib/sharpGaussianDeliveryManifest";
 
 const REAL_SPLAT_RENDERERS = new Set(["luma", "luma_web", "luma_capture", "luma_splats"]);
 const SHARP_GAUSSIAN_RENDERERS = new Set(["sharp_gaussian_direct", "ply_gaussian_fallback", "sharp_ply"]);
@@ -75,7 +76,18 @@ export function resolveEnvironmentRenderSource({
     const explicitSource = String(rendering?.viewer_source ?? "").trim();
     const preferredViewerSource = String(viewerUrl ?? explicitSource).trim();
     const preferredPlySource = String(plyUrl ?? "").trim();
+    const preferredManifestSource = isLikelySharpGaussianManifestSource(preferredViewerSource)
+        ? preferredViewerSource
+        : isLikelySharpGaussianManifestSource(preferredPlySource)
+          ? preferredPlySource
+          : "";
+    const manifestBackfilledIntoPlySource =
+        preferredManifestSource !== "" && preferredManifestSource === preferredPlySource && !isLikelyLumaSource(preferredPlySource);
     const isSingleImagePreview = isSingleImagePreviewMetadata(metadata);
+
+    if (isSingleImagePreview && preferredManifestSource) {
+        return { mode: "sharp", source: preferredManifestSource };
+    }
 
     if (isSingleImagePreview && preferredPlySource) {
         return { mode: "sharp", source: preferredPlySource };
@@ -83,6 +95,14 @@ export function resolveEnvironmentRenderSource({
 
     if (isSingleImagePreview) {
         return { mode: "none", source: "" };
+    }
+
+    if (manifestBackfilledIntoPlySource) {
+        return { mode: "sharp", source: preferredManifestSource };
+    }
+
+    if (preferredManifestSource && (explicitRenderer === "" || SHARP_GAUSSIAN_RENDERERS.has(explicitRenderer))) {
+        return { mode: "sharp", source: preferredManifestSource };
     }
 
     if (preferredViewerSource && (REAL_SPLAT_RENDERERS.has(explicitRenderer) || isLikelyLumaSource(preferredViewerSource))) {
@@ -167,15 +187,7 @@ export function resolveViewerCapabilities({
     capabilities?: ViewerCapabilities;
 }): ViewerCapabilityDecision {
     const renderSource = resolveEnvironmentRenderSource({ plyUrl, viewerUrl, metadata });
-
-    if (!capabilities.webglSupported) {
-        return createFallbackDecision(
-            capabilities,
-            renderSource,
-            "webgl_unavailable",
-            "WebGL could not be initialized in this environment.",
-        );
-    }
+    const isSingleImagePreview = isSingleImagePreviewMetadata(metadata);
 
     if (renderSource.mode === "sharp" && !capabilities.webgl2Supported) {
         return createFallbackDecision(
@@ -186,7 +198,16 @@ export function resolveViewerCapabilities({
         );
     }
 
-    if (renderSource.mode === "sharp" && !capabilities.extColorBufferFloatSupported) {
+    if (!capabilities.webglSupported) {
+        return createFallbackDecision(
+            capabilities,
+            renderSource,
+            "webgl_unavailable",
+            "WebGL could not be initialized in this environment.",
+        );
+    }
+
+    if (renderSource.mode === "sharp" && !isSingleImagePreview && !capabilities.extColorBufferFloatSupported) {
         return createFallbackDecision(
             capabilities,
             renderSource,
@@ -207,11 +228,20 @@ export function resolveViewerCapabilities({
 export function classifyViewerFailure(message: string): ViewerFallbackReason {
     const normalized = message.trim().toLowerCase();
 
-    if (normalized.includes("texture size")) {
-        return "texture_size_exceeded";
-    }
     if (normalized.includes("context was lost")) {
         return "context_lost";
+    }
+    if (normalized.includes("webgl2")) {
+        return "webgl2_required";
+    }
+    if (normalized.includes("ext_color_buffer_float")) {
+        return "ext_color_buffer_float_required";
+    }
+    if (normalized.includes("webgl")) {
+        return "webgl_unavailable";
+    }
+    if (normalized.includes("texture size")) {
+        return "texture_size_exceeded";
     }
     return "environment_render_failed";
 }
