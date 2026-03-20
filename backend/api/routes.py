@@ -51,6 +51,10 @@ def _local_dev_shared_secret() -> str:
     return os.getenv("GAUSET_LOCAL_DEV_SHARED_SECRET", "gauset-local-dev-worker-token").strip()
 
 
+def _env_flag(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _is_allowed_remote_upload_url(url: str) -> bool:
     try:
         parsed = urllib.parse.urlparse(url)
@@ -409,18 +413,124 @@ class SceneReviewRequest(BaseModel):
 
 @router.get("/setup/status")
 async def setup_status():
+    has_ml_sharp = (PROJECT_ROOT / "backend" / "ml-sharp").exists()
+    has_triposr = (PROJECT_ROOT / "backend" / "TripoSR").exists()
+    allow_mock_mode = _env_flag("GAUSET_ALLOW_MOCK_MODE", "0")
+    preview_available = has_ml_sharp or allow_mock_mode
+    asset_available = has_triposr or allow_mock_mode
+    reconstruction_available = False
+
+    if preview_available and asset_available:
+        backend_truth = (
+            "Local preview and asset lanes are available."
+            if has_ml_sharp and has_triposr
+            else "Local QA mode is active. Preview and asset lanes can fall back to mock generation because GAUSET_ALLOW_MOCK_MODE=1."
+        )
+    elif preview_available:
+        backend_truth = (
+            "Local preview lane is available. Asset extraction is not connected."
+            if has_ml_sharp
+            else "Local QA preview is enabled because GAUSET_ALLOW_MOCK_MODE=1. Asset extraction is not connected."
+        )
+    elif asset_available:
+        backend_truth = (
+            "Local asset extraction is available. Preview is not connected."
+            if has_triposr
+            else "Local QA asset extraction is enabled because GAUSET_ALLOW_MOCK_MODE=1. Preview is not connected."
+        )
+    else:
+        backend_truth = (
+            "Preview is unavailable locally. Install backend/ml-sharp or set GAUSET_ALLOW_MOCK_MODE=1 for local QA."
+        )
+
     return {
         "status": "ok",
+        "storage_mode": "filesystem",
         "python_version": platform.python_version(),
         "project_root": str(PROJECT_ROOT),
+        "storage": {
+            "mode": "filesystem",
+            "public_write_safe": True,
+        },
+        "backend": {
+            "label": "Local MVP Backend",
+            "kind": "generation",
+            "deployment": "local",
+            "truth": backend_truth,
+        },
         "directories": {
             "uploads": UPLOADS_DIR.exists(),
             "assets": ASSETS_DIR.exists(),
             "scenes": SCENES_DIR.exists(),
         },
         "models": {
-            "ml_sharp": (PROJECT_ROOT / "backend" / "ml-sharp").exists(),
-            "triposr": (PROJECT_ROOT / "backend" / "TripoSR").exists(),
+            "ml_sharp": has_ml_sharp,
+            "triposr": has_triposr,
+            "preview_generator": preview_available,
+            "asset_generator": asset_available,
+            "reconstruction_generator": reconstruction_available,
+        },
+        "capabilities": {
+            "preview": {
+                "available": preview_available,
+                "label": "Instant Preview",
+                "summary": "Build the first world from one still.",
+                "truth": (
+                    "Single-image preview is available in this local backend."
+                    if has_ml_sharp
+                    else "Local QA preview is enabled because GAUSET_ALLOW_MOCK_MODE=1."
+                    if allow_mock_mode
+                    else "Install backend/ml-sharp or enable GAUSET_ALLOW_MOCK_MODE=1 to run local preview QA."
+                ),
+                "lane_truth": "single_image_lrm_preview" if preview_available else "preview_unavailable",
+                "input_strategy": "1 photo",
+                "min_images": 1,
+                "recommended_images": 1,
+            },
+            "reconstruction": {
+                "available": reconstruction_available,
+                "label": "Production Reconstruction",
+                "summary": "Collect a multi-view capture set for a fuller reconstruction pass.",
+                "truth": "Reconstruction is intentionally unavailable in the local fallback backend.",
+                "lane_truth": "reconstruction_unavailable",
+                "input_strategy": "8-32 overlapping photos or short orbit video",
+                "min_images": 8,
+                "recommended_images": 12,
+            },
+            "asset": {
+                "available": asset_available,
+                "label": "Single-Image Asset",
+                "summary": "Extract a hero asset from one reference still.",
+                "truth": (
+                    "Single-image asset extraction is available in this local backend."
+                    if has_triposr
+                    else "Local QA asset extraction is enabled because GAUSET_ALLOW_MOCK_MODE=1."
+                    if allow_mock_mode
+                    else "Install backend/TripoSR or enable GAUSET_ALLOW_MOCK_MODE=1 to run local asset QA."
+                ),
+                "lane_truth": "single_image_asset" if asset_available else "asset_unavailable",
+                "input_strategy": "1 photo",
+                "min_images": 1,
+                "recommended_images": 1,
+            },
+        },
+        "capture": {
+            "minimum_images": 8,
+            "recommended_images": 12,
+        },
+        "reconstruction_backend": {
+            "name": "offline",
+        },
+        "benchmark_status": {
+            "status": "not_benchmarked",
+        },
+        "release_gates": {
+            "truthful_preview_lane": preview_available,
+            "truthful_asset_lane": asset_available,
+            "truthful_reconstruction_lane": reconstruction_available,
+        },
+        "local_qa": {
+            "mock_mode_enabled": allow_mock_mode,
         },
         "torch": _torch_status(),
     }

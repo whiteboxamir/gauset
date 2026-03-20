@@ -665,6 +665,7 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
     onToggleFullscreen,
     canUseAdvancedDensity,
     isAdvancedDensityEnabled,
+    journeyStage = "start",
 }: {
     sceneSlices: ViewerPanelSceneSlices;
     clarityMode: boolean;
@@ -707,6 +708,7 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
     onToggleFullscreen: () => void | Promise<void>;
     canUseAdvancedDensity?: boolean;
     isAdvancedDensityEnabled?: boolean;
+    journeyStage?: "start" | "unsaved" | "saved";
 }) {
     const hasEnvironment = Boolean(sceneSlices.environment);
     const environmentState = describeEnvironment(sceneSlices.environment);
@@ -721,13 +723,16 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
         (hasEnvironmentSplat || Boolean(referenceImage) || sceneSlices.assets.length > 0 || sceneSlices.pins.length > 0);
     const hasOperableViewer = viewerReady && shouldRenderInteractiveViewer && !shouldUseStaticReferenceViewer;
     const isStandbyHud = !hasOperableViewer;
+    const advancedViewerUnlocked = journeyStage === "saved";
     const viewerActionDisabled = readOnly || !viewerReady;
     const cameraViewActionDisabled =
         readOnly || !(viewerReady || shouldRenderInteractiveViewer || shouldUseStaticReferenceViewer || hasEnvironment);
-    const canCaptureView = !cameraViewActionDisabled && hasOperableViewer;
-    const canAnnotate = !viewerActionDisabled && hasOperableViewer;
-    const canRecordPath = Boolean(isAdvancedDensityEnabled) && !viewerActionDisabled && hasOperableViewer;
-    const canUseTransformTools = Boolean(isAdvancedDensityEnabled);
+    const canCaptureView = advancedViewerUnlocked && !cameraViewActionDisabled && hasOperableViewer;
+    const canAnnotate = advancedViewerUnlocked && !viewerActionDisabled && hasOperableViewer;
+    const canRecordPath = advancedViewerUnlocked && Boolean(isAdvancedDensityEnabled) && !viewerActionDisabled && hasOperableViewer;
+    const canUseTransformTools = advancedViewerUnlocked && Boolean(isAdvancedDensityEnabled);
+    const canToggleDirectorHud = advancedViewerUnlocked && Boolean(onToggleDirectorHud);
+    const canShowStudioToggle = advancedViewerUnlocked && Boolean(canUseAdvancedDensity) && Boolean(onToggleAdvancedDensity);
     const directorHudToggleLabel = directorHudCompact ? "Open full controls" : "Return to dock";
     const environmentIndicatorClassName =
         hasEnvironment && !isReferenceOnlyDemo && !isLegacyDemoWorld
@@ -765,9 +770,14 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
                         {canUseTransformTools ? <ViewerTransformToolControls activeTool={activeTool} onSetActiveTool={onSetActiveTool} /> : null}
-                        <ViewerLensPresetControls activeLensMm={sceneSlices.viewer.lens_mm} onSetLens={onSetLens} compact />
+                        {advancedViewerUnlocked ? <ViewerLensPresetControls activeLensMm={sceneSlices.viewer.lens_mm} onSetLens={onSetLens} compact /> : null}
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">
+                        {!advancedViewerUnlocked ? (
+                            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] text-neutral-300">
+                                Save first world to open direction controls.
+                            </div>
+                        ) : null}
                         {canCaptureView ? (
                             <button
                                 type="button"
@@ -799,16 +809,18 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
                             {isFullscreen ? <Minimize2 className="mr-1 inline h-3.5 w-3.5" /> : <Maximize2 className="mr-1 inline h-3.5 w-3.5" />}
                             {isFullscreen ? "Exit full screen" : "Full screen"}
                         </button>
-                        <button
-                            type="button"
-                            onClick={onToggleDirectorHud}
-                            className={`${utilityButtonClassName} shrink-0`}
-                            aria-label={directorHudToggleLabel}
-                        >
-                            <Maximize2 className="mr-1 inline h-3.5 w-3.5" />
-                            Controls
-                        </button>
-                        {canUseAdvancedDensity && onToggleAdvancedDensity ? (
+                        {canToggleDirectorHud ? (
+                            <button
+                                type="button"
+                                onClick={onToggleDirectorHud}
+                                className={`${utilityButtonClassName} shrink-0`}
+                                aria-label={directorHudToggleLabel}
+                            >
+                                <Maximize2 className="mr-1 inline h-3.5 w-3.5" />
+                                Controls
+                            </button>
+                        ) : null}
+                        {canShowStudioToggle ? (
                             <button
                                 type="button"
                                 onClick={onToggleAdvancedDensity}
@@ -839,6 +851,11 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
                     {processingStatus ? (
                         <div className="rounded-full border border-sky-300/15 bg-sky-400/10 px-3 py-2 text-[11px] text-sky-100">
                             {processingStatus.busy ? "Rendering" : "Status"}: {processingStatus.label}
+                        </div>
+                    ) : null}
+                    {!advancedViewerUnlocked ? (
+                        <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] text-neutral-300">
+                            Save first world to open direction controls.
                         </div>
                     ) : null}
                     {canCaptureView ? (
@@ -899,13 +916,13 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
                         {isFullscreen ? <Minimize2 className="mr-1 inline h-3.5 w-3.5" /> : <Maximize2 className="mr-1 inline h-3.5 w-3.5" />}
                         {isFullscreen ? "Exit full screen" : "Full screen"}
                     </button>
-                    {onToggleDirectorHud ? (
+                    {canToggleDirectorHud ? (
                         <button type="button" onClick={onToggleDirectorHud} className={utilityButtonClassName} aria-label={directorHudToggleLabel}>
                             <Minimize2 className="mr-1 inline h-3.5 w-3.5" />
                             Compact HUD
                         </button>
                     ) : null}
-                    {canUseAdvancedDensity && onToggleAdvancedDensity ? (
+                    {canShowStudioToggle ? (
                         <button type="button" onClick={onToggleAdvancedDensity} className={studioControlsButtonClassName}>
                             {isAdvancedDensityEnabled ? "Studio view on" : "Studio view off"}
                         </button>
@@ -913,28 +930,30 @@ const ViewerDirectorHud = React.memo(function ViewerDirectorHud({
                 </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1">
-                    <ViewerLensPresetControls activeLensMm={sceneSlices.viewer.lens_mm} onSetLens={onSetLens} />
+            {advancedViewerUnlocked ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                        <ViewerLensPresetControls activeLensMm={sceneSlices.viewer.lens_mm} onSetLens={onSetLens} />
+                    </div>
+                    {canUseTransformTools ? (
+                        <div className="shrink-0">
+                            <ViewerTransformToolControls activeTool={activeTool} onSetActiveTool={onSetActiveTool} />
+                        </div>
+                    ) : null}
+                    {canUseTransformTools && isTransformToolMode(activeTool) ? (
+                        <div className="shrink-0">
+                            <ViewerTransformSessionControls
+                                activeTool={activeTool}
+                                transformSpace={transformSpace}
+                                transformSnap={transformSnap}
+                                onSetTransformSpace={onSetTransformSpace}
+                                onToggleTransformSnap={onToggleTransformSnap}
+                                onCycleTransformSnap={onCycleTransformSnap}
+                            />
+                        </div>
+                    ) : null}
                 </div>
-                {canUseTransformTools ? (
-                    <div className="shrink-0">
-                        <ViewerTransformToolControls activeTool={activeTool} onSetActiveTool={onSetActiveTool} />
-                    </div>
-                ) : null}
-                {canUseTransformTools && isTransformToolMode(activeTool) ? (
-                    <div className="shrink-0">
-                        <ViewerTransformSessionControls
-                            activeTool={activeTool}
-                            transformSpace={transformSpace}
-                            transformSnap={transformSnap}
-                            onSetTransformSpace={onSetTransformSpace}
-                            onToggleTransformSnap={onToggleTransformSnap}
-                            onCycleTransformSnap={onCycleTransformSnap}
-                        />
-                    </div>
-                ) : null}
-            </div>
+            ) : null}
         </div>
     );
 });
@@ -1131,6 +1150,7 @@ const ViewerPanelWorkspaceMode = React.memo(function ViewerPanelWorkspaceMode({
                     onToggleFullscreen={workspaceViewer.toggleFullscreen}
                     canUseAdvancedDensity={workspaceViewer.canUseAdvancedDensity}
                     isAdvancedDensityEnabled={workspaceViewer.isAdvancedDensityEnabled}
+                    journeyStage={workspaceViewer.journeyStage}
                 />
             }
             overlaySurface={

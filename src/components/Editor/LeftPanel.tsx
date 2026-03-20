@@ -60,10 +60,12 @@ export default function LeftPanel({
         initialUploadCapability,
     });
     const showCondensedOfflineState = intake.backendMode === "offline" && !intake.selectedUpload && (intake.captureSession?.frame_count ?? 0) === 0;
-    const showStudioGeneration = isAdvancedDensityEnabled || journeyStage !== "start";
     const allowAssetActions = isAdvancedDensityEnabled;
     const previewButtonLabel = hasWorldContent ? "Refresh world preview" : "Build first world";
-    const hasActiveIntake = intake.uploads.length > 0 || (intake.captureSession?.frame_count ?? 0) > 0;
+    const hasIntakeSource = intake.uploads.length > 0 || (intake.captureSession?.frame_count ?? 0) > 0;
+    const showAdvancedSourceSection = hasSavedVersion || isAdvancedDensityEnabled || launchIntent === "generate";
+    const showCaptureWorkspace =
+        intake.uploads.length > 0 || (intake.captureSession?.frame_count ?? 0) > 0 || Boolean(intake.statusText || intake.errorText);
 
     const captureWorkspace = (
         <LeftPanelCaptureWorkspace
@@ -117,20 +119,9 @@ export default function LeftPanel({
             directUploadMaximumSizeInBytes={intake.directUploadMaximumSizeInBytes}
             legacyProxyMaximumSizeInBytes={intake.legacyProxyMaximumSizeInBytes}
             reconstructionAvailable={intake.reconstructionAvailable}
+            hasIntakeSource={hasIntakeSource}
             triggerFilePicker={intake.triggerFilePicker}
         />
-    );
-
-    const sourcePathIntroSection = (
-        <section className="rounded-[22px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] px-4 py-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9d978f]">Source path</p>
-            <p className="mt-2 text-sm font-medium leading-6 text-white">
-                {launchProjectId ? "Choose the first source for this project-bound world." : "Choose one source path before anything else."}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-neutral-400">
-                Import or capture leads the workflow. Generation stays available below as a secondary option.
-            </p>
-        </section>
     );
 
     const advancedSourceSection = (
@@ -142,10 +133,10 @@ export default function LeftPanel({
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                            {showStudioGeneration ? "Generation, secondary" : "Secondary source option"}
+                            Secondary path
                         </p>
                         <p className="mt-1 text-sm text-white">
-                            Keep generated stills available without competing with import or capture.
+                            Use a generated still only if you want to start without an uploaded source.
                         </p>
                     </div>
                     <span className="rounded-full border border-white/8 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-neutral-400">
@@ -231,11 +222,9 @@ export default function LeftPanel({
             {!showCondensedOfflineState ? (
                 <div className="space-y-4">
                     {importSection}
-                    {sourcePathIntroSection}
-                    {hasActiveIntake ? captureWorkspace : null}
-                    {!hasActiveIntake ? captureWorkspace : null}
+                    {showCaptureWorkspace ? captureWorkspace : null}
                     {hasSavedVersion || isAdvancedDensityEnabled ? <LeftPanelActivityLog jobs={intake.jobs} /> : null}
-                    {advancedSourceSection}
+                    {showAdvancedSourceSection ? advancedSourceSection : null}
                 </div>
             ) : null}
         </div>

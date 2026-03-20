@@ -1,7 +1,10 @@
+import base64
 import json
+import math
 import os
 import shlex
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -31,12 +34,94 @@ def _run_command(command: List[str], cwd: Optional[Path] = None) -> None:
         raise RuntimeError(message)
 
 
-def _write_mock_environment(output_dir: Path) -> None:
+MOCK_PREVIEW_PNG_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR42mP8//8/Azbw////JxgYGIABBgA4nQf7c5vN0gAAAABJRU5ErkJggg=="
+)
+
+
+def _write_mock_preview_projection(output_path: Path) -> None:
+    output_path.write_bytes(base64.b64decode(MOCK_PREVIEW_PNG_BASE64))
+
+
+def _write_mock_splats(output_path: Path) -> None:
+    vertices = [
+        (-0.10, -0.08, 0.00, 236, 228, 216, 3.0, math.log(0.045), math.log(0.045), math.log(0.045), 0.0, 0.0, 0.0, 1.0),
+        (0.10, -0.08, 0.00, 228, 214, 198, 3.0, math.log(0.045), math.log(0.045), math.log(0.045), 0.0, 0.0, 0.0, 1.0),
+        (-0.10, 0.08, 0.02, 214, 224, 236, 3.0, math.log(0.045), math.log(0.045), math.log(0.045), 0.0, 0.0, 0.0, 1.0),
+        (0.10, 0.08, 0.02, 202, 216, 232, 3.0, math.log(0.045), math.log(0.045), math.log(0.045), 0.0, 0.0, 0.0, 1.0),
+        (0.00, 0.00, 0.08, 244, 236, 220, 3.4, math.log(0.060), math.log(0.060), math.log(0.060), 0.0, 0.0, 0.0, 1.0),
+        (-0.04, 0.03, 0.12, 220, 210, 196, 3.1, math.log(0.035), math.log(0.035), math.log(0.035), 0.0, 0.0, 0.0, 1.0),
+        (0.05, -0.03, 0.12, 210, 222, 234, 3.1, math.log(0.035), math.log(0.035), math.log(0.035), 0.0, 0.0, 0.0, 1.0),
+        (0.00, 0.00, -0.05, 190, 200, 214, 2.8, math.log(0.050), math.log(0.050), math.log(0.050), 0.0, 0.0, 0.0, 1.0),
+    ]
+    header = "\n".join(
+        [
+            "ply",
+            "format binary_little_endian 1.0",
+            f"element vertex {len(vertices)}",
+            "property float x",
+            "property float y",
+            "property float z",
+            "property uchar red",
+            "property uchar green",
+            "property uchar blue",
+            "property float opacity",
+            "property float scale_0",
+            "property float scale_1",
+            "property float scale_2",
+            "property float rot_0",
+            "property float rot_1",
+            "property float rot_2",
+            "property float rot_3",
+            "end_header\n",
+        ]
+    ).encode("ascii")
+
+    with output_path.open("wb") as handle:
+        handle.write(header)
+        for vertex in vertices:
+            handle.write(struct.pack("<fffBBBffffffff", *vertex))
+
+
+def _write_mock_environment(output_dir: Path, input_image: Path) -> None:
     time.sleep(1.5)
-    (output_dir / "splats.ply").write_text("mock ply data for gaussian splats")
-    (output_dir / "cameras.json").write_text(json.dumps([]))
+    _write_mock_splats(output_dir / "splats.ply")
+    _write_mock_preview_projection(output_dir / "preview-projection.png")
+    (output_dir / "cameras.json").write_text(
+        json.dumps(
+            [
+                {
+                    "position": [0.0, 0.0, 1.4],
+                    "target": [0.0, 0.0, 0.02],
+                    "up": [0.0, 1.0, 0.0],
+                    "fov_degrees": 45.0,
+                }
+            ],
+            indent=2,
+        )
+    )
     (output_dir / "metadata.json").write_text(
-        json.dumps({"model": "ml-sharp-mock", "note": "mock fallback"}, indent=2)
+        json.dumps(
+            {
+                "model": "ml-sharp-mock",
+                "note": "mock fallback",
+                "lane": "preview",
+                "truth_label": "Local QA mock preview",
+                "quality_tier": "single_image_preview",
+                "input_image": str(input_image),
+                "preview_projection": str(output_dir / "preview-projection.png"),
+                "rendering": {
+                    "source_format": "mock_preview_binary_ply",
+                    "color_encoding": "albedo_linear",
+                    "apply_preview_orientation": False,
+                },
+                "delivery": {
+                    "label": "Mock preview delivery",
+                },
+                "execution_mode": "mock",
+            },
+            indent=2,
+        )
     )
 
 
@@ -170,6 +255,6 @@ def generate_environment(image_path: str, output_dir: str) -> str:
             ) from exc
 
         print(f"[ML-Sharp] Falling back to mock output: {exc}")
-        _write_mock_environment(final_output_dir)
+        _write_mock_environment(final_output_dir, input_image)
 
     return str(final_output_dir)

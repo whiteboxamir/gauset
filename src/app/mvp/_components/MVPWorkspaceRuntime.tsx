@@ -6,7 +6,6 @@ import Link from "next/link";
 import LeftPanel from "@/components/Editor/LeftPanel";
 import ViewerPanel from "@/components/Editor/ViewerPanel";
 import RightPanel from "@/components/Editor/RightPanel";
-import DeploymentFingerprintBadge from "@/components/Editor/DeploymentFingerprintBadge";
 import type { LeftPanelPreviewWorkspaceNavigation } from "@/components/Editor/leftPanelShared";
 import type { MvpDeploymentFingerprint } from "@/lib/mvp-deployment";
 import type { MvpDirectUploadCapabilitySnapshot } from "@/lib/mvp-upload";
@@ -120,6 +119,13 @@ const describeLaunchSourceLabel = (sourceKind?: string | null) => {
         default:
             return "World source";
     }
+};
+
+const saveActionLabel = (saveState: ReturnType<typeof useMvpWorkspaceSession>["saveState"]) => {
+    if (saveState === "saving") return "Saving first world";
+    if (saveState === "saved") return "Save again";
+    if (saveState === "error") return "Retry save";
+    return "Save first world";
 };
 
 const MVPWorkspaceStatusRibbon = React.memo(function MVPWorkspaceStatusRibbon({
@@ -297,6 +303,43 @@ const MVPWorkspaceClarityHeader = React.memo(function MVPWorkspaceClarityHeader(
     );
 });
 
+const MVPWorkspaceMilestoneBar = React.memo(function MVPWorkspaceMilestoneBar() {
+    const workspaceSession = useMvpWorkspaceSession();
+
+    if (workspaceSession.journeyStage === "start") {
+        return null;
+    }
+
+    if (workspaceSession.journeyStage === "saved") {
+        return <MVPWorkspaceStatusRibbon clarityMode routeVariant="workspace" />;
+    }
+
+    return (
+        <div className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(20,25,30,0.94),rgba(16,20,24,0.96))] px-4 py-3 lg:px-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-3xl">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#bfd6de]/72">Step 3 of 3</p>
+                    <p className="mt-2 text-sm font-medium tracking-tight text-white">Save the first world once.</p>
+                    <p className="mt-2 text-xs leading-5 text-neutral-400">
+                        Review, history, and deeper controls stay closed until the first save lands.
+                    </p>
+                    {workspaceSession.saveState === "error" && workspaceSession.saveMessage ? (
+                        <p className="mt-2 text-xs leading-5 text-rose-200">{workspaceSession.saveMessage}</p>
+                    ) : null}
+                </div>
+                <button
+                    type="button"
+                    onClick={workspaceSession.manualSave}
+                    disabled={workspaceSession.saveState === "saving"}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#f4efe8] px-5 py-3 text-sm font-medium text-[#101418] transition-colors hover:bg-[#ebe3d8] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    {saveActionLabel(workspaceSession.saveState)}
+                </button>
+            </div>
+        </div>
+    );
+});
+
 const MVPWorkspaceLeftRail = React.memo(function MVPWorkspaceLeftRail({
     clarityMode,
     previewWorkspaceNavigation,
@@ -419,7 +462,6 @@ const MVPWorkspaceFrame = React.memo(function MVPWorkspaceFrame({
     routeVariant = "workspace",
     launchPreviewHref = null,
     initialUploadCapability,
-    deploymentFingerprint,
 }: {
     clarityMode?: boolean;
     routeVariant?: MvpRouteVariant;
@@ -428,10 +470,9 @@ const MVPWorkspaceFrame = React.memo(function MVPWorkspaceFrame({
     deploymentFingerprint: MvpDeploymentFingerprint;
 }) {
     const workspaceSession = useMvpWorkspaceSession();
-    const showRightRail = workspaceSession.journeyStage !== "start";
-    const leftRailCollapsed = workspaceSession.journeyStage === "start" ? false : workspaceSession.hudState.leftRailCollapsed;
-    const rightRailCollapsed =
-        workspaceSession.journeyStage === "start" ? true : workspaceSession.journeyStage === "unsaved" ? false : workspaceSession.hudState.rightRailCollapsed;
+    const showRightRail = workspaceSession.journeyStage === "saved";
+    const leftRailCollapsed = workspaceSession.journeyStage === "saved" ? workspaceSession.hudState.leftRailCollapsed : false;
+    const rightRailCollapsed = workspaceSession.hudState.rightRailCollapsed;
     const previewWorkspaceNavigation =
         clarityMode && routeVariant === "launchpad"
             ? {
@@ -465,7 +506,7 @@ const MVPWorkspaceFrame = React.memo(function MVPWorkspaceFrame({
                 />
             ) : null}
 
-            <MVPWorkspaceStatusRibbon clarityMode={clarityMode} routeVariant={routeVariant} />
+            <MVPWorkspaceMilestoneBar />
 
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#101418] [-webkit-overflow-scrolling:touch] xl:flex-row xl:overflow-hidden">
                 <MVPWorkspaceLeftRail
@@ -489,7 +530,6 @@ const MVPWorkspaceFrame = React.memo(function MVPWorkspaceFrame({
                     />
                 ) : null}
             </div>
-            <DeploymentFingerprintBadge fingerprint={deploymentFingerprint} />
         </div>
     );
 });
@@ -528,7 +568,6 @@ export default function MVPWorkspaceRuntime({
                     onStartWorkspace={workspaceSession.startBlankWorkspace}
                     onResumeDraft={workspaceSession.resumeStoredDraft}
                 />
-                <DeploymentFingerprintBadge fingerprint={deploymentFingerprint} />
             </>
         );
     }

@@ -69,7 +69,6 @@ export function ProjectWorldLaunchPanel({
     const [providerCatalog, setProviderCatalog] = useState<ProviderCatalogResponse | null>(null);
     const [providerError, setProviderError] = useState<string | null>(null);
     const [selectedProviderId, setSelectedProviderId] = useState("");
-    const [showGenerationLane, setShowGenerationLane] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -102,16 +101,10 @@ export function ProjectWorldLaunchPanel({
             .filter((provider) => provider.media_kind === "image")
             .map((provider) => ({
                 id: provider.id,
-                label: provider.available ? provider.label : `${provider.label} (availability checked in workspace)`,
+                label: provider.available ? provider.label : `${provider.label} (checked in workspace)`,
             }));
         return liveProviders.length > 0 ? liveProviders : fallbackProviderOptions;
     }, [providerCatalog]);
-
-    const providerStatusLabel = providerError
-        ? "Generation provider routing unavailable."
-        : providerCatalog
-          ? `${providerOptions.length} provider route${providerOptions.length === 1 ? "" : "s"} checked.`
-          : "Checking generation provider routes.";
 
     useEffect(() => {
         if (!selectedProviderId && providerOptions.length > 0) {
@@ -127,8 +120,8 @@ export function ProjectWorldLaunchPanel({
         intent?: "generate" | "import" | "capture";
         sourceKind?: string;
         sceneId?: string | null;
-    }) => {
-        return buildLaunchPath({
+    }) =>
+        buildLaunchPath({
             projectId,
             brief,
             references,
@@ -137,26 +130,24 @@ export function ProjectWorldLaunchPanel({
             sourceKind,
             sceneId,
         });
-    };
 
-    const launchCardClassName = (tone: "primary" | "secondary") =>
-        tone === "primary"
-            ? "rounded-[1.4rem] border border-[#bfd6de]/24 bg-[linear-gradient(180deg,rgba(191,214,222,0.14),rgba(244,239,232,0.04))] px-4 py-4 text-left transition-colors hover:border-[#bfd6de]/38 hover:bg-[linear-gradient(180deg,rgba(191,214,222,0.18),rgba(244,239,232,0.06))] disabled:cursor-not-allowed disabled:opacity-60"
-            : "rounded-[1.3rem] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-4 text-left transition-colors hover:border-white/25 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60";
+    const cardClassName =
+        "rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.012))] px-4 py-4 text-left transition-colors hover:border-white/18 hover:bg-white/[0.06]";
 
-    const renderLaunchCard = ({
+    const renderLinkCard = ({
         label,
         body,
         href,
         disabled,
-        tone = "secondary",
+        primary = false,
     }: {
         label: string;
         body: string;
         href: string;
         disabled: boolean;
-        tone?: "primary" | "secondary";
+        primary?: boolean;
     }) => {
+        const className = primary ? `${cardClassName} border-[#bfd6de]/24 bg-[#bfd6de]/8 hover:border-[#bfd6de]/36` : cardClassName;
         const content = (
             <>
                 <p className="text-sm font-semibold text-white">{label}</p>
@@ -166,167 +157,145 @@ export function ProjectWorldLaunchPanel({
 
         if (disabled) {
             return (
-                <button type="button" disabled className={launchCardClassName(tone)}>
+                <button type="button" disabled className={`${className} cursor-not-allowed opacity-60`}>
                     {content}
                 </button>
             );
         }
 
         return (
-            <Link href={href} prefetch={false} className={launchCardClassName(tone)}>
+            <Link href={href} prefetch={false} className={className}>
                 {content}
             </Link>
         );
     };
 
     return (
-        <section id="project-world-launch" className="rounded-[1.95rem] border border-[var(--border-soft)] bg-[rgba(22,28,34,0.78)] p-5">
-            <div className="grid gap-5 xl:grid-cols-[1.18fr,0.82fr]">
-                <div className="rounded-[1.55rem] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="max-w-2xl">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#bfd6de]/78">Saved-world workflow</p>
-                            <h3 className="mt-2 text-xl font-medium text-[var(--foreground)]">Build the first world</h3>
-                            <p className="mt-3 text-sm leading-6 text-[#b8b1a7]">
-                                Choose one source path first. The first save anchors the project world record so continuity memory, review posture, and handoff stay attached.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <StatusBadge label={canAccessMvp ? "Launch ready" : "Launch blocked"} tone={canAccessMvp ? "success" : "warning"} />
-                            <StatusBadge label={resumeSceneId ? "Saved world linked" : "Awaiting first saved world"} tone={resumeSceneId ? "info" : "neutral"} />
-                        </div>
-                    </div>
-
-                    <div className="mt-5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9d978f]">Primary source path</p>
-                        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                            {renderLaunchCard({
-                                label: "Import source frames",
-                                body: "Bring in scout stills or reference frames and start the saved world from real material.",
-                                href: launchHref({ intent: "import", sourceKind: "upload" }),
-                                disabled: !canAccessMvp,
-                                tone: "primary",
-                            })}
-                            {renderLaunchCard({
-                                label: "Capture set",
-                                body: "Use overlapping views to reconstruct the same persistent world with more faithful spatial coverage.",
-                                href: launchHref({ intent: "capture", sourceKind: "capture_session" }),
-                                disabled: !canAccessMvp,
-                                tone: "primary",
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="mt-5 rounded-[1.35rem] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.025)] p-4">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="max-w-2xl">
-                                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9d978f]">Secondary paths</p>
-                                <p className="mt-2 text-xs leading-5 text-neutral-400">
-                                    Use these only when the source world already exists elsewhere or when you need to return to the same saved record.
-                                </p>
-                            </div>
-                            {providerError ? <StatusBadge label="Generation routing unavailable" tone="warning" /> : null}
-                        </div>
-                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                            {renderLaunchCard({
-                                label: "Attach external world",
-                                body: "Bring an outside world package into this project record without changing the main front-door workflow.",
-                                href: launchHref({ intent: "import", sourceKind: "external_world_package" }),
-                                disabled: !canAccessMvp,
-                            })}
-                            {renderLaunchCard({
-                                label: resumeSceneId ? "Reopen saved world" : "Reopen saved world unavailable",
-                                body: "Return to the same saved world instead of branching into a new workspace.",
-                                href: launchHref({ sceneId: resumeSceneId, sourceKind: "linked_scene_version" }),
-                                disabled: !canAccessMvp || !resumeSceneId,
-                            })}
-                        </div>
-                    </div>
+        <section id="project-world-launch" className="rounded-[30px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="max-w-3xl">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Project start</p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">Choose the first source</h2>
+                    <p className="mt-3 text-sm leading-6 text-[#b2c2c9]">
+                        Start with one still. Build the first world, then save once before anything else expands.
+                    </p>
                 </div>
-
-                <div className="space-y-4">
-                    <section className="rounded-[1.45rem] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9d978f]">Continuity intake</p>
-                        <p className="mt-2 text-sm leading-6 text-[#b8b1a7]">
-                            Thin notes entered here travel with the first saved world instead of living in a disposable prompt.
-                        </p>
-                    </section>
-
-                    <section className="rounded-[1.35rem] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9d978f]">World bible</p>
-                        <textarea
-                            value={brief}
-                            onChange={(event) => setBrief(event.target.value)}
-                            rows={4}
-                            placeholder="Continuity, cast, blocking, and location notes that should stay with the world."
-                            className="mt-3 w-full rounded-2xl border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[#80796f] focus:border-[#bfd6de]/40"
-                        />
-                        <p className="mt-3 text-xs leading-5 text-neutral-400">Use this for the durable project memory that should follow the saved world.</p>
-                    </section>
-
-                    <section className="rounded-[1.35rem] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9d978f]">Cast, look, and shot continuity</p>
-                        <textarea
-                            value={references}
-                            onChange={(event) => setReferences(event.target.value)}
-                            rows={4}
-                            placeholder="Look references, sequence direction, external links, and shot notes that should travel with the saved world."
-                            className="mt-3 w-full rounded-2xl border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[#80796f] focus:border-[#bfd6de]/40"
-                        />
-                        <p className="mt-3 text-xs leading-5 text-neutral-400">Keep this attached to the world record so review and handoff stay consistent.</p>
-                    </section>
+                <div className="flex flex-wrap gap-2">
+                    <StatusBadge label={canAccessMvp ? "Ready" : "Blocked"} tone={canAccessMvp ? "success" : "warning"} />
+                    {resumeSceneId ? <StatusBadge label="Saved world exists" tone="info" /> : null}
                 </div>
             </div>
 
-            <details className="mt-5 rounded-[1.25rem] border border-white/8 bg-white/[0.015]" open={showGenerationLane} onToggle={(event) => setShowGenerationLane((event.currentTarget as HTMLDetailsElement).open)}>
-                <summary className="cursor-pointer list-none px-4 py-3 marker:content-none">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9d978f]">Generation, secondary</p>
-                            <p className="mt-1 text-xs leading-5 text-neutral-500">Keep prompt-generated stills available without competing with the source path above.</p>
-                        </div>
-                        <span className="rounded-full border border-white/8 bg-black/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-neutral-400">Reveal</span>
+            <div className="mt-6">
+                {renderLinkCard({
+                    label: "Import stills",
+                    body: "Start from a real still or a few reference frames.",
+                    href: launchHref({ intent: "import", sourceKind: "upload" }),
+                    disabled: !canAccessMvp,
+                    primary: true,
+                })}
+            </div>
+
+            {resumeSceneId ? (
+                <div className="mt-4 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#9d978f]">Existing saved world</p>
+                    <p className="mt-2 text-sm text-white">A saved world is already attached to this project.</p>
+                    <div className="mt-3">
+                        <Link
+                            href={launchHref({ sceneId: resumeSceneId, sourceKind: "linked_scene_version" })}
+                            prefetch={false}
+                            className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                        >
+                            Reopen saved world
+                        </Link>
                     </div>
+                </div>
+            ) : null}
+
+            <details className="mt-4 rounded-[22px] border border-white/8 bg-white/[0.02]">
+                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-white marker:content-none">
+                    Project notes (optional)
                 </summary>
                 <div className="space-y-4 border-t border-white/8 px-4 py-4">
-                    <label className="space-y-2">
-                        <span className="text-[10px] uppercase tracking-[0.16em] text-[#9d978f]">Preferred provider</span>
-                        <select
-                            value={selectedProviderId}
-                            onChange={(event) => setSelectedProviderId(event.target.value)}
-                            className="w-full rounded-2xl border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[#bfd6de]/40"
-                        >
-                            {providerOptions.map((provider) => (
-                                <option key={provider.id} value={provider.id}>
-                                    {provider.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-[rgba(244,239,232,0.02)] px-4 py-3">
-                        <div className="max-w-xl">
-                            <p className="text-sm font-medium text-[var(--foreground)]">Source still generation</p>
-                            <p className="mt-1 text-[11px] leading-5 text-neutral-400">
-                                {providerStatusLabel} This lane only supplies a source still. It does not replace the saved-world record.
-                            </p>
-                        </div>
-                        {canAccessMvp ? (
-                            <Link
-                                href={launchHref({ intent: "generate", sourceKind: "provider_generated_still" })}
-                                prefetch={false}
-                                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-[var(--foreground)] transition-colors hover:border-white/20 hover:bg-white/[0.08]"
-                            >
-                                Open generation lane
-                            </Link>
-                        ) : (
-                            <button type="button" disabled className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60">
-                                Open generation lane
-                            </button>
-                        )}
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-[#9d978f]">World notes</p>
+                        <textarea
+                            value={brief}
+                            onChange={(event) => setBrief(event.target.value)}
+                            rows={3}
+                            placeholder="Only the notes that should stay with the saved world."
+                            className="mt-3 w-full rounded-2xl border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[#80796f] focus:border-[#bfd6de]/40"
+                        />
                     </div>
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-[#9d978f]">Look and continuity</p>
+                        <textarea
+                            value={references}
+                            onChange={(event) => setReferences(event.target.value)}
+                            rows={3}
+                            placeholder="Optional look, cast, or shot continuity."
+                            className="mt-3 w-full rounded-2xl border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[#80796f] focus:border-[#bfd6de]/40"
+                        />
+                    </div>
+                </div>
+            </details>
 
-                    {providerError ? <p className="text-[11px] leading-5 text-amber-200">Provider catalog note: {providerError}</p> : null}
+            <details className="mt-4 rounded-[22px] border border-white/8 bg-white/[0.02]">
+                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-white marker:content-none">
+                    More ways to start
+                </summary>
+                <div className="space-y-4 border-t border-white/8 px-4 py-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {renderLinkCard({
+                            label: "Start a capture set",
+                            body: "Use overlapping views when you want a fuller world later.",
+                            href: launchHref({ intent: "capture", sourceKind: "capture_session" }),
+                            disabled: !canAccessMvp,
+                        })}
+                        {renderLinkCard({
+                            label: "Attach external world",
+                            body: "Use this only when the world already exists outside Gauset.",
+                            href: launchHref({ intent: "import", sourceKind: "external_world_package" }),
+                            disabled: !canAccessMvp,
+                        })}
+                        <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-4">
+                            <p className="text-sm font-semibold text-white">Generate a source still</p>
+                            <p className="mt-2 text-xs leading-5 text-neutral-400">
+                                Keep prompt generation secondary. It only supplies a starting still.
+                            </p>
+                            <div className="mt-3 flex flex-col gap-3">
+                                <select
+                                    value={selectedProviderId}
+                                    onChange={(event) => setSelectedProviderId(event.target.value)}
+                                    className="w-full rounded-2xl border border-[var(--border-soft)] bg-[rgba(244,239,232,0.03)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition-colors focus:border-[#bfd6de]/40"
+                                >
+                                    {providerOptions.map((provider) => (
+                                        <option key={provider.id} value={provider.id}>
+                                            {provider.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {canAccessMvp ? (
+                                    <Link
+                                        href={launchHref({ intent: "generate", sourceKind: "provider_generated_still" })}
+                                        prefetch={false}
+                                        className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                                    >
+                                        Open generation lane
+                                    </Link>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white opacity-60"
+                                    >
+                                        Open generation lane
+                                    </button>
+                                )}
+                                {providerError ? <p className="text-[11px] leading-5 text-amber-200">{providerError}</p> : null}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </details>
         </section>

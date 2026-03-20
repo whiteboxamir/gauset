@@ -44,143 +44,134 @@ export default async function ProjectWorldRecordPage({
 
     return (
         <main className="min-h-screen bg-[#07111a] text-[#ecf3f6]">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:px-8 lg:px-10">
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-10 sm:px-8">
                 <section className="rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_30px_100px_rgba(0,0,0,0.24)] backdrop-blur-sm">
                     <div className="flex flex-wrap items-center gap-3">
                         <Link href="/app/worlds" className="text-sm text-[#9db7c0] transition hover:text-white">
-                            World Record Library
+                            Project worlds
                         </Link>
                         <span className="text-[#5e7680]">/</span>
                         <span className="text-sm text-white">{detail.project.name}</span>
                     </div>
-                    <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+
+                    <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
                         <div className="max-w-3xl">
-                            <p className="text-[11px] uppercase tracking-[0.26em] text-[#89aeb9]">Project record</p>
+                            <p className="text-[11px] uppercase tracking-[0.26em] text-[#89aeb9]">Project</p>
                             <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-white sm:text-4xl">{detail.project.name}</h1>
                             <p className="mt-3 text-sm leading-6 text-[#b2c2c9]">
-                                {detail.project.description ?? "Persistent world record for continuity, saved-world review, and shot-direction handoff."}
+                                {detail.project.description ?? "Choose the first source, start the first world, and save once."}
                             </p>
                         </div>
                         <span className={`inline-flex items-center rounded-full border px-4 py-2 text-xs uppercase tracking-[0.22em] ${readinessTone(releaseReadiness.state)}`}>
                             {releaseReadiness.state.replace("_", " ")}
                         </span>
                     </div>
+
                     <div className="mt-6 flex flex-wrap gap-3">
+                        <a
+                            href="#project-world-launch"
+                            className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-[#d7e5ea]"
+                        >
+                            Choose first source
+                        </a>
                         {detail.project.primarySceneId ? (
                             <Link
                                 href={worldWorkspaceHref(detail.project.projectId, detail.project.primarySceneId)}
-                                className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-[#d7e5ea]"
+                                className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
                             >
                                 Reopen saved world
                             </Link>
                         ) : null}
-                        <a
-                            href="#project-world-launch"
-                            className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
-                        >
-                            Choose source path
-                        </a>
                     </div>
                 </section>
 
-                <section className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-                    <div className="grid gap-4">
-                        <ProjectWorldLaunchPanel
-                            projectId={detail.project.projectId}
-                            canAccessMvp={canAccessMvp}
-                            resumeSceneId={detail.project.primarySceneId}
-                        />
+                <ProjectWorldLaunchPanel
+                    projectId={detail.project.projectId}
+                    canAccessMvp={canAccessMvp}
+                    resumeSceneId={detail.project.primarySceneId}
+                />
 
-                        <article id="project-record" className="rounded-[30px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Saved-world record</p>
-                            <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">Primary world</p>
-                                    <p className="mt-2 text-lg font-semibold text-white">{primaryWorld?.environmentLabel ?? detail.project.primaryEnvironmentLabel ?? "Pending first save"}</p>
-                                </div>
-                                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">World links</p>
-                                    <p className="mt-2 text-lg font-semibold text-white">{detail.worldLinks.length}</p>
-                                </div>
-                                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">Last activity</p>
-                                    <p className="mt-2 text-lg font-semibold text-white">
-                                        {detail.project.lastActivityAt ? new Date(detail.project.lastActivityAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No activity yet"}
-                                    </p>
-                                </div>
+                <section id="project-record" className="rounded-[30px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Saved worlds</p>
+                            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">
+                                {detail.worldLinks.length > 0 ? `${detail.worldLinks.length} attached` : "None yet"}
+                            </h2>
+                        </div>
+                        <p className="text-sm text-[#9db0b8]">
+                            {primaryWorld?.environmentLabel ?? detail.project.primaryEnvironmentLabel ?? "Waiting for first save"}
+                        </p>
+                    </div>
+
+                    <div className="mt-5 grid gap-3">
+                        {detail.worldLinks.length === 0 ? (
+                            <div className="rounded-[24px] border border-dashed border-white/12 bg-white/[0.02] p-5 text-sm text-[#b2c2c9]">
+                                No saved world is attached yet. Start with one source above and save once.
                             </div>
-                            <div className="mt-6 grid gap-4">
-                                {detail.worldLinks.length === 0 ? (
-                                    <div className="rounded-[24px] border border-dashed border-white/12 bg-white/[0.02] p-5 text-sm text-[#b2c2c9]">
-                                        No saved world is attached yet. Choose the first source in the project launch above, save the first world once, then come back here for review and handoff.
-                                    </div>
-                                ) : (
-                                    detail.worldLinks.map((link) => (
-                                        <div key={link.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div>
-                                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">{link.isPrimary ? "Primary world" : "Attached world"}</p>
-                                                    <h2 className="mt-2 text-lg font-semibold text-white">{link.environmentLabel ?? link.sceneId}</h2>
-                                                </div>
-                                                <Link
-                                                    href={`/mvp?scene=${encodeURIComponent(link.sceneId)}&project=${encodeURIComponent(detail.project.projectId)}`}
-                                                    className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
-                                                >
-                                                    Open saved world
-                                                </Link>
-                                            </div>
-                                            <p className="mt-3 text-sm text-[#b2c2c9]">
+                        ) : (
+                            detail.worldLinks.map((link) => (
+                                <div key={link.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">{link.isPrimary ? "Primary world" : "Attached world"}</p>
+                                            <h3 className="mt-2 text-lg font-semibold text-white">{link.environmentLabel ?? link.sceneId}</h3>
+                                            <p className="mt-2 text-sm text-[#b2c2c9]">
                                                 Scene {link.sceneId}
-                                                {link.truthSummary?.latestVersionId ? ` • Version ${link.truthSummary.latestVersionId}` : ""}
-                                                {link.truthSummary?.productionReadiness ? ` • ${link.truthSummary.productionReadiness}` : ""}
+                                                {link.truthSummary?.latestVersionId ? ` · Version ${link.truthSummary.latestVersionId}` : ""}
+                                                {link.truthSummary?.productionReadiness ? ` · ${link.truthSummary.productionReadiness}` : ""}
                                             </p>
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                        </article>
-                    </div>
-
-                    <aside className="grid gap-4">
-                        <article className="rounded-[30px] border border-white/8 bg-[#09141d] p-6">
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Release truth</p>
-                            <p className="mt-3 text-sm leading-6 text-[#b2c2c9]">{releaseReadiness.summary}</p>
-                            <div className="mt-4 grid gap-3">
-                                {releaseReadiness.capabilities.map((capability) => (
-                                    <div key={capability.capability} className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm font-medium capitalize text-white">{capability.capability}</p>
-                                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] ${readinessTone(capability.state)}`}>
-                                                {capability.state.replace("_", " ")}
-                                            </span>
-                                        </div>
-                                        <p className="mt-2 text-sm text-[#b2c2c9]">{capability.summary}</p>
+                                        <Link
+                                            href={`/mvp?scene=${encodeURIComponent(link.sceneId)}&project=${encodeURIComponent(detail.project.projectId)}`}
+                                            className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                                        >
+                                            Open saved world
+                                        </Link>
                                     </div>
-                                ))}
-                            </div>
-                        </article>
-
-                        <article className="rounded-[30px] border border-white/8 bg-[#09141d] p-6">
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Project activity</p>
-                            <div className="mt-4 grid gap-3">
-                                {detail.activity.length === 0 ? (
-                                    <p className="rounded-[20px] border border-dashed border-white/12 bg-white/[0.02] p-4 text-sm text-[#b2c2c9]">
-                                        No recorded project activity yet in this shell.
-                                    </p>
-                                ) : (
-                                    detail.activity.map((entry) => (
-                                        <div key={entry.id} className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
-                                            <p className="text-sm font-medium text-white">{entry.summary}</p>
-                                            <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#7e9ca8]">
-                                                {entry.eventType} • {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                            </p>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </article>
-                    </aside>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </section>
+
+                <details className="rounded-[30px] border border-white/8 bg-[#09141d]">
+                    <summary className="cursor-pointer list-none px-6 py-4 text-sm font-medium text-white marker:content-none sm:px-8">
+                        Project status
+                    </summary>
+                    <div className="space-y-4 border-t border-white/8 px-6 py-6 sm:px-8">
+                        <div className="grid gap-3">
+                            {releaseReadiness.capabilities.map((capability) => (
+                                <div key={capability.capability} className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-sm font-medium capitalize text-white">{capability.capability}</p>
+                                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] ${readinessTone(capability.state)}`}>
+                                            {capability.state.replace("_", " ")}
+                                        </span>
+                                    </div>
+                                    <p className="mt-2 text-sm text-[#b2c2c9]">{capability.summary}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid gap-3">
+                            {detail.activity.length === 0 ? (
+                                <p className="rounded-[20px] border border-dashed border-white/12 bg-white/[0.02] p-4 text-sm text-[#b2c2c9]">
+                                    No recorded project activity yet in this shell.
+                                </p>
+                            ) : (
+                                detail.activity.map((entry) => (
+                                    <div key={entry.id} className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+                                        <p className="text-sm font-medium text-white">{entry.summary}</p>
+                                        <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#7e9ca8]">
+                                            {entry.eventType} • {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </details>
             </div>
         </main>
     );

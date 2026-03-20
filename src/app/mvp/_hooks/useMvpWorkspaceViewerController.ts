@@ -144,6 +144,7 @@ export function useMvpWorkspaceViewerController({
         transformSnap,
         hudState: workspaceSession.hudState,
         processingStatus: workspaceSession.stepStatus,
+        journeyStage: workspaceSession.journeyStage,
         canUseAdvancedDensity: workspaceSession.canUseAdvancedDensity,
         isAdvancedDensityEnabled: workspaceSession.isAdvancedDensityEnabled,
         toggleAdvancedDensity: workspaceSession.toggleAdvancedDensity,
