@@ -1,7 +1,6 @@
 'use server';
 
 import db from '@/lib/db';
-import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 const emailSchema = z.string().email();
@@ -33,9 +32,6 @@ export async function loginUser(formData: FormData) {
         emailSchema.parse(email);
 
         await new Promise(r => setTimeout(r, 800));
-
-        const cookieStore = await cookies();
-        cookieStore.delete('auth-token');
 
         return {
             success: false,

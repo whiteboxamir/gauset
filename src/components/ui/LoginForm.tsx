@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { loginUser } from '@/app/actions';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -14,28 +12,23 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ defaultEmail = '', redirectPath = '/dashboard' }: LoginFormProps) {
-    const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+    const [status, setStatus] = useState<'idle' | 'loading'>('idle');
     const [message, setMessage] = useState('');
-    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (status === 'loading') return;
 
         setStatus('loading');
-        const formData = new FormData(e.currentTarget);
-        const result = await loginUser(formData);
+        setMessage('');
 
-        if (result.success) {
-            setStatus('success');
-            setMessage(result.message);
-
-            setTimeout(() => {
-                router.push(redirectPath);
-            }, 500);
-        } else {
+        try {
+            await new Promise((resolve) => window.setTimeout(resolve, 700));
+            setMessage("You haven't been given early access yet. Request access and we'll reach out when your studio is approved.");
+        } catch {
+            setMessage('Early access is not available right now. Please try again in a moment.');
+        } finally {
             setStatus('idle');
-            setMessage(result.message);
         }
     };
 
@@ -68,11 +61,11 @@ export function LoginForm({ defaultEmail = '', redirectPath = '/dashboard' }: Lo
 
                 <button
                     type="submit"
-                    disabled={status !== 'idle'}
+                    disabled={status === 'loading'}
                     className={cn(
                         'mt-4 w-full rounded-2xl py-4 flex items-center justify-center font-medium shadow-[0_0_20px_rgba(255,255,255,0.1)]',
                         'transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100',
-                        status === 'success' ? 'bg-[#00ff9d] text-black shadow-[0_0_40px_rgba(0,255,157,0.3)]' : 'bg-white text-black hover:bg-neutral-200'
+                        'bg-white text-black hover:bg-neutral-200'
                     )}
                 >
                     <AnimatePresence mode="wait">
@@ -84,11 +77,6 @@ export function LoginForm({ defaultEmail = '', redirectPath = '/dashboard' }: Lo
                         {status === 'loading' && (
                             <motion.div key="loader" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
                                 <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-                            </motion.div>
-                        )}
-                        {status === 'success' && (
-                            <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                {message}
                             </motion.div>
                         )}
                     </AnimatePresence>
