@@ -16,7 +16,9 @@ export type MvpDirectUploadCapabilitySnapshot = Pick<
 >;
 
 export const MVP_DIRECT_UPLOAD_MAX_BYTES = 64 * 1024 * 1024;
-export const MVP_DIRECT_UPLOAD_MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
+// Keep normal still uploads on the direct blob path; multipart was tripping a live 413
+// for larger stills even though the deployment advertised 64 MB direct-upload support.
+export const MVP_DIRECT_UPLOAD_MULTIPART_THRESHOLD_BYTES = 32 * 1024 * 1024;
 export const MVP_LEGACY_PROXY_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 export const MVP_DIRECT_UPLOAD_ALLOWED_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export const MVP_DIRECT_UPLOAD_ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"] as const;
