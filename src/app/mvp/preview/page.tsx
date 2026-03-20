@@ -67,16 +67,15 @@ export default async function MVPPreviewPage({
                   launchPreviewParams.delete("entry");
                   return launchPreviewParams.size > 0 ? `/mvp/preview?${launchPreviewParams.toString()}` : "/mvp/preview";
               })();
+    if (directProjectWorkspaceEntry && launchEntryMode !== "workspace" && launchProjectId) {
+        redirect(`/app/worlds/${launchProjectId}#project-world-launch`);
+    }
     const nextPath = directProjectWorkspaceEntry && launchEntryMode !== "workspace" ? canonicalProjectPreviewPath : launchPreviewHref;
     const workspaceSearchParams = new URLSearchParams(launchPreviewParams);
     workspaceSearchParams.set("entry", "workspace");
     const launchWorkspaceHref = `/mvp/preview?${workspaceSearchParams.toString()}`;
 
     await requireMvpWorkspaceAccess(nextPath);
-
-    if (directProjectWorkspaceEntry && launchEntryMode !== "workspace") {
-        redirect(canonicalProjectPreviewPath);
-    }
 
     return (
         <MVPRouteClient
