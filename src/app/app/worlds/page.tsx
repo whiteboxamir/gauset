@@ -16,7 +16,7 @@ function worldWorkspaceHref(projectId: string, primarySceneId: string | null) {
         return `/mvp?scene=${encodeURIComponent(primarySceneId)}&project=${encodeURIComponent(projectId)}`;
     }
 
-    return `/mvp/preview?project=${encodeURIComponent(projectId)}&entry=workspace`;
+    return `/mvp?project=${encodeURIComponent(projectId)}&entry=workspace`;
 }
 
 export default async function WorldsPage() {
@@ -49,10 +49,10 @@ export default async function WorldsPage() {
                     </div>
                     <div className="mt-6 flex flex-wrap gap-3 text-sm">
                         <Link
-                            href="/mvp/preview"
+                            href="/mvp"
                             className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 font-medium text-black transition hover:bg-[#d7e5ea]"
                         >
-                            Open unsaved workspace
+                            Open saved-world front door
                         </Link>
                         <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[#b4c6cd]">
                             {useLocalPreview ? "Local preview truth is active" : "Authenticated project records are active"}

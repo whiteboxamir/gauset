@@ -17,7 +17,7 @@ function worldWorkspaceHref(projectId: string, primarySceneId: string | null) {
         return `/mvp?scene=${encodeURIComponent(primarySceneId)}&project=${encodeURIComponent(projectId)}`;
     }
 
-    return `/mvp/preview?project=${encodeURIComponent(projectId)}&entry=workspace`;
+    return `/mvp?project=${encodeURIComponent(projectId)}&entry=workspace`;
 }
 
 export default async function ProjectWorldRecordPage({
@@ -71,10 +71,10 @@ export default async function ProjectWorldRecordPage({
                             {detail.project.primarySceneId ? "Reopen saved world" : "Open world workspace"}
                         </Link>
                         <Link
-                            href={`/mvp/preview?project=${encodeURIComponent(detail.project.projectId)}`}
+                            href={`/mvp?project=${encodeURIComponent(detail.project.projectId)}`}
                             className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
                         >
-                            Review pre-save flow
+                            Open project front door
                         </Link>
                     </div>
                 </section>
