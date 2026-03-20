@@ -9,7 +9,7 @@ export default async function LoginPage({
     searchParams: Promise<{ next?: string; email?: string }>;
 }) {
     const params = await searchParams;
-    const nextPath = params.next ?? '/app/worlds';
+    const nextPath = params.next ?? '/mvp';
 
     if (hasConfiguredExternalAppHost()) {
         redirect(buildAppLoginUrl({
@@ -29,10 +29,10 @@ export default async function LoginPage({
                     </p>
                     <div className="mt-6 flex flex-wrap gap-3 text-sm">
                         <Link
-                            href="/app/worlds"
+                            href="/mvp"
                             className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 font-medium text-black transition hover:bg-[#d7e5ea]"
                         >
-                            Open world record library
+                            Open saved-world front door
                         </Link>
                         <Link
                             href={nextPath}

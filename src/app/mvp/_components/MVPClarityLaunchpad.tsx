@@ -67,11 +67,12 @@ export default function MVPClarityLaunchpad({
     onResumeDraft,
 }: MVPClarityLaunchpadProps) {
     const launchLocked = linkedLaunchStatus === "opening";
-    const hasProjectLaunchContext = Boolean(launchProjectId || launchSourceKind);
+    const hasProjectLaunchContext = Boolean(launchProjectId);
+    const hasAttachedSource = Boolean(launchSourceKind);
     const sourceLabel = formatSourceLabel(launchSourceKind);
-    const primaryActionLabel = hasProjectLaunchContext ? "Continue to world start" : "Open demo world";
-    const primaryAction = hasProjectLaunchContext ? onStartWorkspace : onOpenDemoWorld;
-    const canResumeDraft = hasDraft && !hasProjectLaunchContext;
+    const primaryActionLabel = hasProjectLaunchContext || hasAttachedSource ? "Continue to saved-world front door" : "Open demo world";
+    const primaryAction = hasProjectLaunchContext || hasAttachedSource ? onStartWorkspace : onOpenDemoWorld;
+    const canResumeDraft = hasDraft && !hasProjectLaunchContext && !hasAttachedSource;
 
     return (
         <div className="relative flex min-h-screen w-full overflow-x-hidden overflow-y-auto bg-[#101418] text-white supports-[min-height:100dvh]:min-h-dvh">
@@ -93,8 +94,10 @@ export default function MVPClarityLaunchpad({
                         </h1>
                         <p className="mt-6 max-w-2xl text-base leading-7 text-[#d3ccc2] md:text-lg">
                             {hasProjectLaunchContext
-                                ? `${sourceLabel} is already attached to this project. Build the world first, then unlock saved versions, review, and handoff from that same record.`
-                                : "Open the demo or a saved draft to inspect the same world-first path."}
+                                ? `${sourceLabel} is attached to this project route. This preview path is the saved-world front door until the first version is anchored and promoted into /mvp.`
+                                : hasAttachedSource
+                                  ? `${sourceLabel} is attached to this route. Continue into the workspace, then save once before treating it like a durable world record.`
+                                  : "Open the demo world or recover the last local draft from the same saved-world workflow."}
                         </p>
 
                         {launchSceneId ? (
@@ -119,14 +122,14 @@ export default function MVPClarityLaunchpad({
                                         <p className="text-[10px] uppercase tracking-[0.18em] text-[#ddd5cb]">Project-linked launch</p>
                                         <p className="mt-2 text-sm font-medium text-white">
                                             {linkedLaunchStatus === "opening"
-                                                ? `Opening ${launchSceneId}`
+                                                ? `Opening world record ${launchSceneId}`
                                                 : linkedLaunchStatus === "unavailable"
-                                                  ? `Could not reopen ${launchSceneId}`
-                                                  : `Ready to continue ${launchSceneId}`}
+                                                  ? `Could not reopen world record ${launchSceneId}`
+                                                  : `World record ${launchSceneId} is ready`}
                                         </p>
                                         <p className="mt-2 text-sm leading-6 text-[#d3ccc2]">
                                             {linkedLaunchMessage ||
-                                                "Project launches reopen the same world so versions, review, and handoff stay attached."}
+                                                "Project routes reopen the same saved world so versions, review, and handoff stay attached when saved history exists."}
                                         </p>
                                     </div>
                                 </div>
@@ -161,13 +164,17 @@ export default function MVPClarityLaunchpad({
                                     className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bfd6de]/30 bg-[#bfd6de]/12 px-6 py-3 text-sm font-medium text-[#deedf1] transition-colors hover:bg-[#bfd6de]/16 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     <History className="h-4 w-4" />
-                                    Resume local draft
+                                    Recover local draft
                                     {draftSceneId ? ` · ${draftSceneId}` : draftUpdatedAt ? ` · ${formatTimestamp(draftUpdatedAt)}` : ""}
                                 </button>
                             ) : null}
                         </div>
                         <p className="mt-4 max-w-2xl text-sm leading-6 text-[#9d978f]">
-                            {hasProjectLaunchContext ? "Project identity stays attached as you move into the workspace." : "Draft recovery stays local until a project-bound world exists."}
+                            {hasProjectLaunchContext
+                                ? "Project identity stays attached as you move from the preview front door into the workspace."
+                                : hasAttachedSource
+                                  ? "This route carries a source forward, but it is not a project-bound record yet."
+                                  : "Local draft recovery stays inside the saved-world workflow until a project-bound world exists."}
                         </p>
                     </div>
 
@@ -178,7 +185,11 @@ export default function MVPClarityLaunchpad({
                                 1. Start
                             </div>
                             <p className="mt-3 text-sm font-medium text-white">
-                                {hasProjectLaunchContext ? `${sourceLabel} stays attached to the same project world.` : "Open the demo or a saved draft from the same rails."}
+                                {hasProjectLaunchContext
+                                    ? `${sourceLabel} stays attached to the same project world route.`
+                                    : hasAttachedSource
+                                      ? `${sourceLabel} stays attached to this route until the first save.`
+                                      : "Open the demo world or recover the last local draft from the same saved-world rails."}
                             </p>
                         </div>
                         <div className="rounded-[24px] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.035)] p-4">
@@ -207,15 +218,17 @@ export default function MVPClarityLaunchpad({
                             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,7,11,0.08)_0%,rgba(4,7,11,0.18)_48%,rgba(4,7,11,0.9)_100%)]" />
                             <div className="absolute inset-x-0 bottom-0 p-6">
                                 <div className="inline-flex rounded-full border border-[var(--border-soft)] bg-[rgba(16,20,24,0.45)] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-[#ddd5cb] backdrop-blur-md">
-                                    {hasProjectLaunchContext ? sourceLabel : "Demo world"}
+                                    {hasProjectLaunchContext || hasAttachedSource ? sourceLabel : "Demo world"}
                                 </div>
                                 <p className="mt-4 text-2xl font-medium text-white">
                                     {hasProjectLaunchContext ? "Project-led first world" : "Neighborhood cafe interior"}
                                 </p>
                                 <p className="mt-3 max-w-md text-sm leading-6 text-[#ebe4da]/82">
                                     {hasProjectLaunchContext
-                                        ? "The same focused shell stays in front, with the source path already attached."
-                                        : "Use the demo for the quickest tour of the world-first workflow."}
+                                        ? "The same focused shell stays in front, with the project route already attached."
+                                        : hasAttachedSource
+                                          ? "The source route is already attached, but it is not yet a saved project world."
+                                          : "Use the demo to inspect the saved-world front door without dropping back to the old launcher."}
                                 </p>
                             </div>
                         </div>

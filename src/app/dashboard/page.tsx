@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default async function DashboardPage() {
-    redirect('/app/worlds');
+    redirect('/mvp');
 }
