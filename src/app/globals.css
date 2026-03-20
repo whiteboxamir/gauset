@@ -414,6 +414,21 @@ body {
   animation: shimmer 2s infinite;
 }
 
+.waitlist-input {
+  caret-color: #ffffff;
+}
+
+.waitlist-input:-webkit-autofill,
+.waitlist-input:-webkit-autofill:hover,
+.waitlist-input:-webkit-autofill:focus,
+.waitlist-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0) inset;
+  box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Hero headline — mobile shadow boost (visual polish only) */
 @media (max-width: 640px) {
   .hero-headline {

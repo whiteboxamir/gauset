@@ -110,7 +110,7 @@ export function WaitlistForm({
                             onFocus={() => setIsFocused(true)}
                             onBlur={() => setIsFocused(false)}
                             className={cn(
-                                'relative z-[1] flex-1 min-w-0 bg-transparent text-white',
+                                'waitlist-input relative z-[1] flex-1 min-w-0 bg-transparent text-white',
                                 'placeholder:text-neutral-400 focus:outline-none transition-all duration-500',
                                 'border-none',
                                 isLarge ? 'py-3 text-lg' : 'py-2 text-base'
