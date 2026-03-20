@@ -10,6 +10,4 @@ backend_venv_broken_*
 assets
 uploads
 scenes
-scripts
 gauset.db
-api/_mvp_backend

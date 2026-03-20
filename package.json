@@ -7,9 +7,11 @@
     "build": "node scripts/verify_waitlist_supabase_env.mjs && next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "check:vercel-contract": "node scripts/check_vercel_build_contract.mjs",
     "mvp:preflight": "node scripts/mvp_release_preflight.mjs",
     "mvp:canary": "node scripts/mvp_public_canary.mjs",
-    "mvp:release-check": "npm run mvp:preflight && npm run mvp:canary"
+    "mvp:release-check": "npm run check:vercel-contract && npm run mvp:preflight && npm run mvp:canary"
   },
   "dependencies": {
     "@lumaai/luma-web": "^0.2.2",

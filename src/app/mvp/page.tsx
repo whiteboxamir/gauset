@@ -53,18 +53,12 @@ export default async function MVPPage({
     if (launchEntryMode) {
         nextSearchParams.set("entry", launchEntryMode);
     }
-    const nextPath =
-        launchSceneId
-            ? `/mvp?${nextSearchParams.toString()}`
-            : nextSearchParams.size > 0
-              ? `/mvp/preview?${nextSearchParams.toString()}`
-              : "/mvp/preview";
-
-    await requireMvpWorkspaceAccess(nextPath);
-
     if (!launchSceneId) {
-        redirect(nextPath);
+        redirect(launchProjectId ? `/app/worlds/${launchProjectId}` : "/app/worlds");
     }
+
+    const nextPath = `/mvp?${nextSearchParams.toString()}`;
+    await requireMvpWorkspaceAccess(nextPath);
 
     return (
         <MVPRouteClient
