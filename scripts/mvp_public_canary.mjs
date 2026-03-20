@@ -41,9 +41,11 @@ async function main() {
     assert(setupStatus.capabilities?.preview?.available === true, "Preview lane is unavailable.");
 
     const upload = await uploadImage({ baseUrl });
-    assert(typeof upload.image_id === "string" && upload.image_id, `Upload did not return image_id: ${JSON.stringify(upload)}`);
+    assert(typeof upload.upload?.image_id === "string" && upload.upload.image_id, `Upload did not return image_id: ${JSON.stringify(upload)}`);
+    assert(upload.transport === "blob" || upload.transport === "backend", `Unexpected upload transport: ${JSON.stringify(upload)}`);
+    assert(upload.capability?.available === true, `Direct upload capability is unavailable: ${JSON.stringify(upload.capability)}`);
 
-    const generation = await startEnvironmentGeneration(upload.image_id, { baseUrl });
+    const generation = await startEnvironmentGeneration(upload.upload.image_id, { baseUrl });
     assert(typeof generation.job_id === "string" && generation.job_id, `Generation did not return job_id: ${JSON.stringify(generation)}`);
 
     const job = await pollJob(generation.job_id, { baseUrl });
@@ -72,7 +74,10 @@ async function main() {
                 status: "pass",
                 check: "mvp_public_canary",
                 baseUrl,
-                image_id: upload.image_id,
+                upload_transport: upload.transport,
+                direct_upload_available: upload.capability?.available ?? null,
+                direct_upload_max_bytes: upload.capability?.maximumSizeInBytes ?? null,
+                image_id: upload.upload.image_id,
                 scene_id: sceneId,
                 version_id: save.version_id,
                 storage_mode: metadata.storage_mode || null,

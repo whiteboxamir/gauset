@@ -1,8 +1,11 @@
-import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { uploadImageViaMvp } from "./mvp_upload_client.mjs";
 
 export const DEFAULT_BASE_URL = (process.env.GAUSET_MVP_BASE_URL || "https://gauset.com").trim().replace(/\/+$/, "");
-export const DEFAULT_IMAGE_PATH = resolve(process.cwd(), "backend/ml-sharp/data/teaser.jpg");
+export const DEFAULT_IMAGE_PATH = resolve(
+    process.cwd(),
+    process.env.GAUSET_MVP_CANARY_IMAGE || "public/images/hero/interior_daylight.png",
+);
 export const DEFAULT_TIMEOUT_MS = Number(process.env.GAUSET_MVP_CANARY_TIMEOUT_MS || 180000);
 
 export function assert(condition, message) {
@@ -26,6 +29,29 @@ export function joinBaseUrl(pathname, baseUrl = resolveBaseUrl()) {
         return new URL(`/api/mvp${pathname}`, `${baseUrl}/`).toString();
     }
     return new URL(pathname, `${baseUrl}/`).toString();
+}
+
+export async function fetchPage(pathname, init = {}, context = pathname, baseUrl = resolveBaseUrl()) {
+    const response = await fetch(joinBaseUrl(pathname, baseUrl), init);
+    const bodyText = await response.text();
+    if (!response.ok) {
+        throw new Error(`${context} failed (${response.status}): ${bodyText.slice(0, 400)}`);
+    }
+    return bodyText;
+}
+
+export async function fetchRedirect(pathname, context = pathname, baseUrl = resolveBaseUrl()) {
+    const response = await fetch(joinBaseUrl(pathname, baseUrl), {
+        redirect: "manual",
+    });
+    if (response.status < 300 || response.status >= 400) {
+        const bodyText = await response.text();
+        throw new Error(`${context} did not redirect (${response.status}): ${bodyText.slice(0, 400)}`);
+    }
+    return {
+        status: response.status,
+        location: response.headers.get("location") || "",
+    };
 }
 
 export async function readJsonResponse(response, context) {
@@ -93,14 +119,10 @@ export async function pollJob(jobId, { baseUrl = resolveBaseUrl(), timeoutMs = D
 }
 
 export async function uploadImage({ imagePath = DEFAULT_IMAGE_PATH, baseUrl = resolveBaseUrl() } = {}) {
-    const fileBuffer = await readFile(imagePath);
-    const formData = new FormData();
-    formData.append("file", new Blob([fileBuffer]), imagePath.split("/").pop() || "teaser.jpg");
-    const response = await fetch(apiUrl("/upload", baseUrl), {
-        method: "POST",
-        body: formData,
+    return uploadImageViaMvp({
+        baseUrl,
+        filePath: imagePath,
     });
-    return readJsonResponse(response, "upload");
 }
 
 export async function startEnvironmentGeneration(imageId, { baseUrl = resolveBaseUrl() } = {}) {

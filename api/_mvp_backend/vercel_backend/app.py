@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import io
 import json
 import math
@@ -43,12 +45,168 @@ def _version_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
 
 
+DIRECT_UPLOAD_MAX_BYTES = 64 * 1024 * 1024
+BROWSER_UPLOAD_GRANT_VERSION = "gauset-browser-upload-v2"
+ALLOWED_REMOTE_UPLOAD_HOST_SUFFIX = ".blob.vercel-storage.com"
+browser_upload_grant_nonces: Dict[str, int] = {}
+
+
+def _local_dev_shared_secret() -> str:
+    if os.getenv("VERCEL", "").strip() == "1":
+        return ""
+    return os.getenv("GAUSET_LOCAL_DEV_SHARED_SECRET", "gauset-local-dev-worker-token").strip()
+
+
 def _response_field(payload: Any, key: str) -> Optional[str]:
     if isinstance(payload, dict):
         value = payload.get(key)
     else:
         value = getattr(payload, key, None)
     return value if isinstance(value, str) else None
+
+
+def _worker_token() -> str:
+    return (
+        os.getenv("GAUSET_BACKEND_WORKER_TOKEN", "").strip()
+        or os.getenv("GAUSET_IMAGE_TO_SPLAT_BACKEND_TOKEN", "").strip()
+        or os.getenv("GAUSET_WORKER_TOKEN", "").strip()
+        or _local_dev_shared_secret()
+    )
+
+
+def _request_has_worker_auth(request: Request) -> bool:
+    expected = _worker_token()
+    if not expected:
+        return True
+    authorization = request.headers.get("authorization", "").strip()
+    explicit = request.headers.get("x-gauset-worker-token", "").strip()
+    bearer = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    provided = explicit or bearer
+    return provided == expected
+
+
+def _browser_upload_grant_secret() -> str:
+    return (
+        os.getenv("GAUSET_BROWSER_UPLOAD_SECRET", "").strip()
+        or os.getenv("GAUSET_BACKEND_WORKER_TOKEN", "").strip()
+        or os.getenv("GAUSET_IMAGE_TO_SPLAT_BACKEND_TOKEN", "").strip()
+        or os.getenv("GAUSET_WORKER_TOKEN", "").strip()
+        or _local_dev_shared_secret()
+    )
+
+
+def _normalize_upload_audience(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        parsed = urllib.parse.urlparse(text)
+    except ValueError:
+        return ""
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    normalized_path = (parsed.path or "/").rstrip("/") or "/"
+    return f"{parsed.scheme}://{parsed.netloc}{normalized_path}"
+
+
+def _current_request_upload_audience(request: Request) -> str:
+    return _normalize_upload_audience(str(request.url))
+
+
+def _prune_browser_upload_grant_nonces() -> None:
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    stale_nonces = [nonce for nonce, expires_at in browser_upload_grant_nonces.items() if expires_at <= now_ms]
+    for nonce in stale_nonces:
+        browser_upload_grant_nonces.pop(nonce, None)
+
+
+def _reserve_browser_upload_grant_nonce(nonce: str, expires_at: int) -> bool:
+    _prune_browser_upload_grant_nonces()
+    if nonce in browser_upload_grant_nonces:
+        return False
+    browser_upload_grant_nonces[nonce] = expires_at
+    return True
+
+
+def _browser_upload_grant_message(
+    filename: str,
+    content_type: str,
+    size_bytes: int,
+    expires_at: int,
+    audience: str,
+    nonce: str,
+) -> str:
+    normalized_content_type = str(content_type or "").strip().lower()
+    return "\n".join(
+        [
+            BROWSER_UPLOAD_GRANT_VERSION,
+            str(filename or "").strip(),
+            normalized_content_type,
+            str(int(size_bytes)),
+            str(int(expires_at)),
+            str(audience or "").strip(),
+            str(nonce or "").strip(),
+        ]
+    )
+
+
+def _validate_browser_upload_grant_headers(request: Request, *, filename: str, content_type: str) -> Optional[Dict[str, int]]:
+    secret = _browser_upload_grant_secret()
+    if not secret:
+        return None
+
+    signed_filename = request.headers.get("x-gauset-upload-filename", "").strip()
+    signed_content_type = request.headers.get("x-gauset-upload-content-type", "").strip().lower()
+    signed_size = request.headers.get("x-gauset-upload-size", "").strip()
+    signed_expires = request.headers.get("x-gauset-upload-expires", "").strip()
+    signed_audience = request.headers.get("x-gauset-upload-audience", "").strip()
+    signed_nonce = request.headers.get("x-gauset-upload-nonce", "").strip()
+    provided_signature = request.headers.get("x-gauset-upload-signature", "").strip()
+    if not (signed_filename and signed_content_type and signed_size and signed_expires and signed_audience and signed_nonce and provided_signature):
+        return None
+
+    if signed_filename != str(filename or "").strip():
+        return None
+    if signed_content_type != str(content_type or "").strip().lower():
+        return None
+
+    try:
+        expected_size = int(signed_size)
+        expires_at = int(signed_expires)
+    except ValueError:
+        return None
+
+    request_audience = _current_request_upload_audience(request)
+    if not request_audience or signed_audience != request_audience:
+        return None
+    if expected_size <= 0 or expected_size > DIRECT_UPLOAD_MAX_BYTES:
+        return None
+    if expires_at < int(datetime.now(timezone.utc).timestamp() * 1000):
+        return None
+    if len(signed_nonce) < 16 or not all(character.isalnum() or character in "-_" for character in signed_nonce):
+        return None
+
+    expected_signature = hmac.new(
+        secret.encode("utf-8"),
+        _browser_upload_grant_message(
+            signed_filename,
+            signed_content_type,
+            expected_size,
+            expires_at,
+            signed_audience,
+            signed_nonce,
+        ).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(provided_signature, expected_signature):
+        return None
+    if not _reserve_browser_upload_grant_nonce(signed_nonce, expires_at):
+        return None
+
+    return {
+        "expected_size": expected_size,
+        "expires_at": expires_at,
+    }
 
 
 class StorageBackend:
@@ -377,6 +535,14 @@ def _guess_media_type(path: str) -> str:
     if path.endswith(".ply"):
         return "application/octet-stream"
     return "application/octet-stream"
+
+
+def _is_allowed_remote_upload_url(url: str) -> bool:
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and parsed.hostname is not None and parsed.hostname.endswith(ALLOWED_REMOTE_UPLOAD_HOST_SUFFIX)
 
 
 def _clamp(value: float, minimum: float, maximum: float) -> float:
@@ -1152,6 +1318,57 @@ def _store_upload_bytes(
     return _build_upload_response(record)
 
 
+def _store_remote_upload(
+    *,
+    url: str,
+    original_filename: str,
+    content_type: str | None = None,
+    size_bytes: int | None = None,
+) -> Dict[str, Any]:
+    if not _is_allowed_remote_upload_url(url):
+        raise HTTPException(status_code=400, detail="Uploaded blob URL is not allowed")
+
+    expected_content_type = str(content_type or "").strip().lower()
+    if expected_content_type and not expected_content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image stills can be ingested into the workspace")
+
+    if isinstance(size_bytes, int) and size_bytes > DIRECT_UPLOAD_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Uploaded still exceeds the current 64 MB ingest limit")
+
+    remote_request = urllib.request.Request(url, method="GET", headers={"Accept": "image/*"})
+    try:
+        with urllib.request.urlopen(remote_request, timeout=90) as response:
+            resolved_content_type = (response.headers.get_content_type() or "").lower()
+            content_length = response.headers.get("Content-Length")
+            if content_length:
+                try:
+                    if int(content_length) > DIRECT_UPLOAD_MAX_BYTES:
+                        raise HTTPException(status_code=400, detail="Uploaded still exceeds the current 64 MB ingest limit")
+                except ValueError:
+                    pass
+            if resolved_content_type and not resolved_content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail="Uploaded blob did not resolve to an image still")
+
+            contents = response.read(DIRECT_UPLOAD_MAX_BYTES + 1)
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch uploaded still ({exc.code})") from exc
+    except urllib.error.URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch uploaded still: {exc.reason}") from exc
+
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded still is empty")
+    if len(contents) > DIRECT_UPLOAD_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Uploaded still exceeds the current 64 MB ingest limit")
+    if isinstance(size_bytes, int) and size_bytes > 0 and len(contents) != size_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded still size changed before ingest completed")
+
+    return _store_upload_bytes(
+        contents=contents,
+        original_filename=original_filename,
+        source_type="upload",
+    )
+
+
 def _load_reference_images(image_ids: List[str]) -> List[Any]:
     references: List[Any] = []
     for image_id in image_ids:
@@ -1569,6 +1786,13 @@ class GenerateImageRequest(BaseModel):
     reference_image_ids: List[str] = Field(default_factory=list)
 
 
+class RemoteUploadIngestRequest(BaseModel):
+    url: str
+    original_filename: str
+    content_type: str | None = None
+    size_bytes: int | None = None
+
+
 class CaptureSessionCreateRequest(BaseModel):
     target_images: int = CAPTURE_RECOMMENDED_IMAGES
 
@@ -1844,19 +2068,49 @@ async def list_generation_providers() -> Dict[str, Any]:
 
 
 @app.post("/upload")
-async def upload_image(file: UploadFile = File(...)) -> Dict[str, Any]:
+async def upload_image(request: Request, file: UploadFile = File(...)) -> Dict[str, Any]:
     _require_public_write_storage()
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename in upload")
 
+    grant_headers = None
+    if not _request_has_worker_auth(request):
+        grant_headers = _validate_browser_upload_grant_headers(
+            request,
+            filename=file.filename,
+            content_type=(file.content_type or "application/octet-stream"),
+        )
+        if not grant_headers:
+            raise HTTPException(status_code=401, detail="Unauthorized worker request")
+
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if grant_headers and len(contents) != grant_headers["expected_size"]:
+        raise HTTPException(status_code=400, detail="Uploaded file size did not match the signed upload grant")
 
     return _store_upload_bytes(
         contents=contents,
         original_filename=file.filename,
         source_type="upload",
+    )
+
+
+@app.post("/upload/ingest")
+async def ingest_uploaded_blob(request: RemoteUploadIngestRequest, http_request: Request) -> Dict[str, Any]:
+    _require_public_write_storage()
+    if not _request_has_worker_auth(http_request):
+        raise HTTPException(status_code=401, detail="Unauthorized worker request")
+
+    original_filename = request.original_filename.strip()
+    if not original_filename:
+        raise HTTPException(status_code=400, detail="Missing filename in uploaded still ingest")
+
+    return _store_remote_upload(
+        url=request.url,
+        original_filename=original_filename,
+        content_type=request.content_type,
+        size_bytes=request.size_bytes,
     )
 
 

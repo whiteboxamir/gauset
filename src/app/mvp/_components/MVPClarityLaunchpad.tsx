@@ -44,7 +44,7 @@ const formatSourceLabel = (sourceKind?: string | null) => {
         case "linked_scene_version":
             return "Linked world";
         case "demo_world":
-            return "Demo world";
+            return "Sample shell";
         case "upload":
             return "Scout stills";
         default:
@@ -70,9 +70,29 @@ export default function MVPClarityLaunchpad({
     const hasProjectLaunchContext = Boolean(launchProjectId);
     const hasAttachedSource = Boolean(launchSourceKind);
     const sourceLabel = formatSourceLabel(launchSourceKind);
-    const primaryActionLabel = hasProjectLaunchContext || hasAttachedSource ? "Continue to saved-world front door" : "Open demo world";
-    const primaryAction = hasProjectLaunchContext || hasAttachedSource ? onStartWorkspace : onOpenDemoWorld;
+    const projectLibraryHref = "/app/worlds";
+    const primaryActionLabel = hasProjectLaunchContext
+        ? "Open project world workspace"
+        : hasAttachedSource
+          ? "Open world workspace"
+          : "Open project library";
+    const workspaceEntryLabel = hasProjectLaunchContext ? "Open project world workspace" : "Start intake workspace";
+    const primaryAction = onStartWorkspace;
+    const showSampleAction = !hasProjectLaunchContext && !hasAttachedSource;
     const canResumeDraft = hasDraft && !hasProjectLaunchContext && !hasAttachedSource;
+    const rightCardLabel = hasProjectLaunchContext ? (hasAttachedSource ? sourceLabel : "Project record") : hasAttachedSource ? sourceLabel : "Sample shell";
+    const rightCardTitle = hasProjectLaunchContext
+        ? hasAttachedSource
+            ? "Project-bound first world"
+            : "Choose the first source for this record"
+        : "Reference shell, not the record";
+    const rightCardBody = hasProjectLaunchContext
+        ? hasAttachedSource
+            ? "The same focused shell stays in front, with the project record already attached."
+            : "Choose import or capture from the project path, then save once to anchor the first durable world."
+        : hasAttachedSource
+          ? "The source route is already attached, but it is not yet an anchored project world record."
+          : "Use the sample only to inspect the flow. Your real record begins from a project or a live source path.";
 
     return (
         <div className="relative flex min-h-screen w-full overflow-x-hidden overflow-y-auto bg-[#101418] text-white supports-[min-height:100dvh]:min-h-dvh">
@@ -83,10 +103,10 @@ export default function MVPClarityLaunchpad({
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
                             <span className="rounded-full border border-[#bfd6de]/30 bg-[#bfd6de]/12 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-[#deedf1]">
-                                World-first start
+                                Project-first entry
                             </span>
                         </div>
-                        <p className="mt-8 text-[11px] uppercase tracking-[0.2em] text-[#bfd6de]/70">Start with the world</p>
+                        <p className="mt-8 text-[11px] uppercase tracking-[0.2em] text-[#bfd6de]/70">World record first</p>
                         <h1 className="mt-4 max-w-4xl text-[3rem] font-medium leading-[0.92] tracking-[-0.06em] text-white md:text-[4.4rem]">
                             {hasProjectLaunchContext ? "Build one project world." : "Build one world."}
                             <br />
@@ -94,10 +114,12 @@ export default function MVPClarityLaunchpad({
                         </h1>
                         <p className="mt-6 max-w-2xl text-base leading-7 text-[#d3ccc2] md:text-lg">
                             {hasProjectLaunchContext
-                                ? `${sourceLabel} is attached to this project route. This preview path is the saved-world front door until the first version is anchored and promoted into /mvp.`
+                                ? hasAttachedSource
+                                  ? `${sourceLabel} is already attached to this project record. Open the workspace, build the first world, then save once to anchor the record.`
+                                  : "This project record is attached already. Choose the first source path, build the first world, then save once to anchor the record."
                                 : hasAttachedSource
-                                  ? `${sourceLabel} is attached to this route. Continue into the workspace, then save once before treating it like a durable world record.`
-                                  : "Open the demo world or recover the last local draft from the same saved-world workflow."}
+                                  ? `${sourceLabel} is already attached to this route. Open the workspace, build the first world, then save once to anchor the record.`
+                                  : "Project entry leads. Open the project library first, start a temporary intake workspace if needed, and keep the sample shell clearly secondary."}
                         </p>
 
                         {launchSceneId ? (
@@ -122,14 +144,14 @@ export default function MVPClarityLaunchpad({
                                         <p className="text-[10px] uppercase tracking-[0.18em] text-[#ddd5cb]">Project-linked launch</p>
                                         <p className="mt-2 text-sm font-medium text-white">
                                             {linkedLaunchStatus === "opening"
-                                                ? `Opening world record ${launchSceneId}`
+                                                ? `Opening ${launchSceneId}`
                                                 : linkedLaunchStatus === "unavailable"
-                                                  ? `Could not reopen world record ${launchSceneId}`
-                                                  : `World record ${launchSceneId} is ready`}
+                                                  ? `Could not reopen ${launchSceneId}`
+                                                  : `Route resolved for ${launchSceneId}`}
                                         </p>
                                         <p className="mt-2 text-sm leading-6 text-[#d3ccc2]">
                                             {linkedLaunchMessage ||
-                                                "Project routes reopen the same saved world so versions, review, and handoff stay attached when saved history exists."}
+                                                "Project launches reopen the same world route so versions, review, and handoff stay attached when saved history exists."}
                                         </p>
                                     </div>
                                 </div>
@@ -137,7 +159,36 @@ export default function MVPClarityLaunchpad({
                         ) : null}
 
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                            {hasProjectLaunchContext && startWorkspaceHref && !launchLocked ? (
+                            {showSampleAction ? (
+                                <>
+                                    <Link
+                                        href={projectLibraryHref}
+                                        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#f4efe8] px-6 py-3 text-sm font-medium text-[#101418] transition-colors hover:bg-[#ebe3d8]"
+                                    >
+                                        <Layers3 className="h-4 w-4" />
+                                        {primaryActionLabel}
+                                    </Link>
+                                    {startWorkspaceHref ? (
+                                        <Link
+                                            href={startWorkspaceHref}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-white transition-colors hover:border-white/18 hover:bg-white/[0.08]"
+                                        >
+                                            <PlayCircle className="h-4 w-4" />
+                                            {workspaceEntryLabel}
+                                        </Link>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={primaryAction}
+                                            disabled={launchLocked}
+                                            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-white transition-colors hover:border-white/18 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <PlayCircle className="h-4 w-4" />
+                                            {workspaceEntryLabel}
+                                        </button>
+                                    )}
+                                </>
+                            ) : startWorkspaceHref && !launchLocked ? (
                                 <Link
                                     href={startWorkspaceHref}
                                     className="inline-flex items-center justify-center gap-2 rounded-full bg-[#f4efe8] px-6 py-3 text-sm font-medium text-[#101418] transition-colors hover:bg-[#ebe3d8]"
@@ -156,25 +207,38 @@ export default function MVPClarityLaunchpad({
                                     {primaryActionLabel}
                                 </button>
                             )}
+                            {showSampleAction ? (
+                                <button
+                                    type="button"
+                                    onClick={onOpenDemoWorld}
+                                    disabled={launchLocked}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bfd6de]/18 bg-[#bfd6de]/8 px-6 py-3 text-sm font-medium text-[#deedf1] transition-colors hover:bg-[#bfd6de]/14 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <PlayCircle className="h-4 w-4" />
+                                    Inspect sample shell
+                                </button>
+                            ) : null}
                             {canResumeDraft ? (
                                 <button
                                     type="button"
                                     onClick={onResumeDraft}
                                     disabled={launchLocked}
-                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bfd6de]/30 bg-[#bfd6de]/12 px-6 py-3 text-sm font-medium text-[#deedf1] transition-colors hover:bg-[#bfd6de]/16 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-white transition-colors hover:border-white/18 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     <History className="h-4 w-4" />
-                                    Recover local draft
+                                    Resume local draft
                                     {draftSceneId ? ` · ${draftSceneId}` : draftUpdatedAt ? ` · ${formatTimestamp(draftUpdatedAt)}` : ""}
                                 </button>
                             ) : null}
                         </div>
                         <p className="mt-4 max-w-2xl text-sm leading-6 text-[#9d978f]">
                             {hasProjectLaunchContext
-                                ? "Project identity stays attached as you move from the preview front door into the workspace."
+                                ? hasAttachedSource
+                                  ? "Project identity stays attached as you move from source intake into the saved world record."
+                                  : "Choose the first source for this project record before you open the workspace."
                                 : hasAttachedSource
-                                  ? "This route carries a source forward, but it is not a project-bound record yet."
-                                  : "Local draft recovery stays inside the saved-world workflow until a project-bound world exists."}
+                                  ? "This route carries the source forward until the first save anchors the world record."
+                                  : "Project entry leads. Temporary intake and sample inspection stay secondary."}
                         </p>
                     </div>
 
@@ -186,10 +250,12 @@ export default function MVPClarityLaunchpad({
                             </div>
                             <p className="mt-3 text-sm font-medium text-white">
                                 {hasProjectLaunchContext
-                                    ? `${sourceLabel} stays attached to the same project world route.`
+                                    ? hasAttachedSource
+                                      ? `${sourceLabel} stays attached to the same project world route.`
+                                      : "Choose the first source path for the project record."
                                     : hasAttachedSource
                                       ? `${sourceLabel} stays attached to this route until the first save.`
-                                      : "Open the demo world or recover the last local draft from the same saved-world rails."}
+                                      : "Choose the project record first, or open a temporary intake workspace if you need to start from bare /mvp."}
                             </p>
                         </div>
                         <div className="rounded-[24px] border border-[var(--border-soft)] bg-[rgba(244,239,232,0.035)] p-4">
@@ -218,17 +284,13 @@ export default function MVPClarityLaunchpad({
                             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,7,11,0.08)_0%,rgba(4,7,11,0.18)_48%,rgba(4,7,11,0.9)_100%)]" />
                             <div className="absolute inset-x-0 bottom-0 p-6">
                                 <div className="inline-flex rounded-full border border-[var(--border-soft)] bg-[rgba(16,20,24,0.45)] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-[#ddd5cb] backdrop-blur-md">
-                                    {hasProjectLaunchContext || hasAttachedSource ? sourceLabel : "Demo world"}
+                                    {rightCardLabel}
                                 </div>
                                 <p className="mt-4 text-2xl font-medium text-white">
-                                    {hasProjectLaunchContext ? "Project-led first world" : "Neighborhood cafe interior"}
+                                    {rightCardTitle}
                                 </p>
                                 <p className="mt-3 max-w-md text-sm leading-6 text-[#ebe4da]/82">
-                                    {hasProjectLaunchContext
-                                        ? "The same focused shell stays in front, with the project route already attached."
-                                        : hasAttachedSource
-                                          ? "The source route is already attached, but it is not yet a saved project world."
-                                          : "Use the demo to inspect the saved-world front door without dropping back to the old launcher."}
+                                    {rightCardBody}
                                 </p>
                             </div>
                         </div>

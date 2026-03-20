@@ -1,6 +1,6 @@
 # MVP Production Release
 
-This runbook is for `/Users/amirboz/gauset` and `https://gauset.com`.
+This runbook is for the `gauset-com` repo checkout and `https://gauset.com`.
 
 Do not use the `gauset-app` certification runbook as the production release path for this site.
 
@@ -22,7 +22,7 @@ It does not certify the reconstruction lane, because public reconstruction is st
 
 ## Canonical Commands
 
-Run from `/Users/amirboz/gauset`:
+Run from the `gauset-com` repo root:
 
 ```bash
 node scripts/mvp_release_preflight.mjs
@@ -34,24 +34,30 @@ Optional target override:
 ```bash
 GAUSET_MVP_BASE_URL=https://gauset.com node scripts/mvp_release_preflight.mjs
 GAUSET_MVP_BASE_URL=https://gauset.com node scripts/mvp_public_canary.mjs
+python3 scripts/mvp_smoke.py --mode full --web-base-url https://gauset.com --asset-image public/images/hero_render.png --environment-image public/images/hero/interior_daylight.png
 ```
 
 ## What Preflight Checks
 
 - `/api/mvp/health`
 - `/api/mvp/deployment`
+- `/api/mvp/upload-init`
 - `/api/mvp/setup/status`
+- `/app/worlds` renders the protected sentence
+- `/mvp` renders the project-first launchpad
+- `/mvp/preview` redirects back to `/mvp`
 - durable storage mode
 - truthful lane availability
 
 ## What Canary Checks
 
-- upload
+- direct upload bootstrap plus large-file upload
 - environment preview generation
 - `metadata.json` fetch
 - `splats.ply` HEAD
 - scene save
 - scene version listing
+- asset generation, review shell, and versioned save when `mvp_smoke.py --mode full` is run
 
 ## Stop Conditions
 
@@ -75,4 +81,4 @@ Fail condition:
 
 - `"status": "fail"`
 
-The release is not complete unless both pass.
+The release is not complete unless preflight and canary pass, and asset-lane validation is only claimed when the smoke script is also run.

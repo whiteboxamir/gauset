@@ -5,6 +5,7 @@ import { getCurrentAuthSession } from "@/server/auth/session";
 import { isPlatformDatabaseConfigured } from "@/server/db/client";
 import { getLocalPreviewProjectReadinessDetailForId } from "@/server/projects/local-preview";
 import { getProjectReadinessDetailForSession } from "@/server/projects/readiness";
+import { ProjectWorldLaunchPanel } from "@/components/worlds/ProjectWorldLaunchPanel";
 
 function readinessTone(state: "ready" | "at_risk" | "blocked") {
     if (state === "ready") return "border-emerald-400/30 bg-emerald-500/10 text-emerald-100";
@@ -39,6 +40,7 @@ export default async function ProjectWorldRecordPage({
 
     const releaseReadiness = detail.releaseReadiness;
     const primaryWorld = detail.worldLinks.find((entry) => entry.isPrimary) ?? detail.worldLinks[0] ?? null;
+    const canAccessMvp = useLocalPreview ? true : Boolean(session?.entitlements.canAccessMvp);
 
     return (
         <main className="min-h-screen bg-[#07111a] text-[#ecf3f6]">
@@ -63,71 +65,81 @@ export default async function ProjectWorldRecordPage({
                             {releaseReadiness.state.replace("_", " ")}
                         </span>
                     </div>
-                    <div id="project-world-launch" className="mt-6 flex flex-wrap gap-3">
-                        <Link
-                            href={worldWorkspaceHref(detail.project.projectId, detail.project.primarySceneId)}
-                            className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-[#d7e5ea]"
-                        >
-                            {detail.project.primarySceneId ? "Reopen saved world" : "Open world workspace"}
-                        </Link>
-                        <Link
-                            href={`/mvp?project=${encodeURIComponent(detail.project.projectId)}`}
+                    <div className="mt-6 flex flex-wrap gap-3">
+                        {detail.project.primarySceneId ? (
+                            <Link
+                                href={worldWorkspaceHref(detail.project.projectId, detail.project.primarySceneId)}
+                                className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-[#d7e5ea]"
+                            >
+                                Reopen saved world
+                            </Link>
+                        ) : null}
+                        <a
+                            href="#project-world-launch"
                             className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
                         >
-                            Open project front door
-                        </Link>
+                            Choose source path
+                        </a>
                     </div>
                 </section>
 
                 <section className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-                    <article id="project-record" className="rounded-[30px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Saved-world record</p>
-                        <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                            <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">Primary world</p>
-                                <p className="mt-2 text-lg font-semibold text-white">{primaryWorld?.environmentLabel ?? detail.project.primaryEnvironmentLabel ?? "Pending first save"}</p>
-                            </div>
-                            <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">World links</p>
-                                <p className="mt-2 text-lg font-semibold text-white">{detail.worldLinks.length}</p>
-                            </div>
-                            <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">Last activity</p>
-                                <p className="mt-2 text-lg font-semibold text-white">
-                                    {detail.project.lastActivityAt ? new Date(detail.project.lastActivityAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No activity yet"}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-6 grid gap-4">
-                            {detail.worldLinks.length === 0 ? (
-                                <div className="rounded-[24px] border border-dashed border-white/12 bg-white/[0.02] p-5 text-sm text-[#b2c2c9]">
-                                    No saved world is attached yet. Open the world workspace from this project record, save the first world, then come back here for review and handoff.
+                    <div className="grid gap-4">
+                        <ProjectWorldLaunchPanel
+                            projectId={detail.project.projectId}
+                            canAccessMvp={canAccessMvp}
+                            resumeSceneId={detail.project.primarySceneId}
+                        />
+
+                        <article id="project-record" className="rounded-[30px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
+                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Saved-world record</p>
+                            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">Primary world</p>
+                                    <p className="mt-2 text-lg font-semibold text-white">{primaryWorld?.environmentLabel ?? detail.project.primaryEnvironmentLabel ?? "Pending first save"}</p>
                                 </div>
-                            ) : (
-                                detail.worldLinks.map((link) => (
-                                    <div key={link.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
-                                        <div className="flex flex-wrap items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">{link.isPrimary ? "Primary world" : "Attached world"}</p>
-                                                <h2 className="mt-2 text-lg font-semibold text-white">{link.environmentLabel ?? link.sceneId}</h2>
-                                            </div>
-                                            <Link
-                                                href={`/mvp?scene=${encodeURIComponent(link.sceneId)}&project=${encodeURIComponent(detail.project.projectId)}`}
-                                                className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
-                                            >
-                                                Open saved world
-                                            </Link>
-                                        </div>
-                                        <p className="mt-3 text-sm text-[#b2c2c9]">
-                                            Scene {link.sceneId}
-                                            {link.truthSummary?.latestVersionId ? ` • Version ${link.truthSummary.latestVersionId}` : ""}
-                                            {link.truthSummary?.productionReadiness ? ` • ${link.truthSummary.productionReadiness}` : ""}
-                                        </p>
+                                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">World links</p>
+                                    <p className="mt-2 text-lg font-semibold text-white">{detail.worldLinks.length}</p>
+                                </div>
+                                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">Last activity</p>
+                                    <p className="mt-2 text-lg font-semibold text-white">
+                                        {detail.project.lastActivityAt ? new Date(detail.project.lastActivityAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "No activity yet"}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-6 grid gap-4">
+                                {detail.worldLinks.length === 0 ? (
+                                    <div className="rounded-[24px] border border-dashed border-white/12 bg-white/[0.02] p-5 text-sm text-[#b2c2c9]">
+                                        No saved world is attached yet. Choose the first source in the project launch above, save the first world once, then come back here for review and handoff.
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </article>
+                                ) : (
+                                    detail.worldLinks.map((link) => (
+                                        <div key={link.id} className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-[0.18em] text-[#7898a4]">{link.isPrimary ? "Primary world" : "Attached world"}</p>
+                                                    <h2 className="mt-2 text-lg font-semibold text-white">{link.environmentLabel ?? link.sceneId}</h2>
+                                                </div>
+                                                <Link
+                                                    href={`/mvp?scene=${encodeURIComponent(link.sceneId)}&project=${encodeURIComponent(detail.project.projectId)}`}
+                                                    className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                                                >
+                                                    Open saved world
+                                                </Link>
+                                            </div>
+                                            <p className="mt-3 text-sm text-[#b2c2c9]">
+                                                Scene {link.sceneId}
+                                                {link.truthSummary?.latestVersionId ? ` • Version ${link.truthSummary.latestVersionId}` : ""}
+                                                {link.truthSummary?.productionReadiness ? ` • ${link.truthSummary.productionReadiness}` : ""}
+                                            </p>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </article>
+                    </div>
 
                     <aside className="grid gap-4">
                         <article className="rounded-[30px] border border-white/8 bg-[#09141d] p-6">

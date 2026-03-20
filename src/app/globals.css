@@ -11,17 +11,21 @@
   --cinematic-blue: #1a2744;
 }
 
-/* THE FIX: Lock the native body completely. */
 html,
 body {
   margin: 0;
   padding: 0;
   width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html:has(.hero-container),
+body:has(.hero-container) {
   height: 100%;
   overflow: hidden;
-  /* Stop the body from fighting Drei's ScrollControls */
   overscroll-behavior: none;
-  /* Kill iOS Safari bounce and pull-to-refresh */
 }
 
 /* Hero container — flush to top without safe-area inset or webkit hacks */
@@ -101,15 +105,13 @@ body {
 /* Mobile scroll fix — touch devices only */
 @media (pointer: coarse) {
 
-  html,
-  body {
-    /* Force lock on mobile to guarantee swipe events go to Drei */
+  html:has(.hero-container),
+  body:has(.hero-container) {
     overflow: hidden !important;
     overscroll-behavior: none !important;
   }
 
-  /* Prevent the 3D canvas from swallowing swipe events instead of the scroll wrapper */
-  canvas {
+  body:has(.hero-container) canvas {
     touch-action: none !important;
   }
 }

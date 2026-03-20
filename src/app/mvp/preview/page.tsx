@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getMvpDeploymentFingerprint } from "@/lib/mvp-deployment";
 import { requireMvpWorkspaceAccess } from "@/server/mvp/access";
-import MVPRouteClient from "../MVPRouteClient";
 import {
     normalizeLaunchEntryMode,
     normalizeLaunchIntent,
@@ -29,64 +27,46 @@ export default async function MVPPreviewPage({
     const launchProviderId = normalizeLaunchText(params.provider, 120);
     const launchSourceKind = normalizeLaunchSourceKind(params.source_kind);
 
-    if (!launchSceneId) {
-        const canonicalSearchParams = new URLSearchParams();
+    if (launchSceneId) {
+        const workspaceSearchParams = new URLSearchParams({
+            scene: launchSceneId,
+        });
         if (launchProjectId) {
-            canonicalSearchParams.set("project", launchProjectId);
-        }
-        if (launchIntent) {
-            canonicalSearchParams.set("intent", launchIntent);
-        }
-        if (launchBrief) {
-            canonicalSearchParams.set("brief", launchBrief);
-        }
-        if (launchReferences) {
-            canonicalSearchParams.set("refs", launchReferences);
-        }
-        if (launchProviderId) {
-            canonicalSearchParams.set("provider", launchProviderId);
+            workspaceSearchParams.set("project", launchProjectId);
         }
         if (launchSourceKind) {
-            canonicalSearchParams.set("source_kind", launchSourceKind);
+            workspaceSearchParams.set("source_kind", launchSourceKind);
         }
-        if (launchEntryMode && !launchProjectId) {
-            canonicalSearchParams.set("entry", launchEntryMode);
-        }
+        const canonicalWorkspacePath = `/mvp?${workspaceSearchParams.toString()}`;
 
-        const canonicalPath = canonicalSearchParams.size > 0 ? `/mvp?${canonicalSearchParams.toString()}` : "/mvp";
-        await requireMvpWorkspaceAccess(canonicalPath);
-        redirect(canonicalPath);
+        await requireMvpWorkspaceAccess(canonicalWorkspacePath);
+        redirect(`/mvp?${workspaceSearchParams.toString()}`);
     }
 
-    const workspaceSearchParams = new URLSearchParams({
-        scene: launchSceneId,
-    });
+    const previewSearchParams = new URLSearchParams();
     if (launchProjectId) {
-        workspaceSearchParams.set("project", launchProjectId);
+        previewSearchParams.set("project", launchProjectId);
+    }
+    if (launchIntent) {
+        previewSearchParams.set("intent", launchIntent);
+    }
+    if (launchBrief) {
+        previewSearchParams.set("brief", launchBrief);
+    }
+    if (launchReferences) {
+        previewSearchParams.set("refs", launchReferences);
+    }
+    if (launchProviderId) {
+        previewSearchParams.set("provider", launchProviderId);
     }
     if (launchSourceKind) {
-        workspaceSearchParams.set("source_kind", launchSourceKind);
+        previewSearchParams.set("source_kind", launchSourceKind);
     }
-    const canonicalWorkspacePath = `/mvp?${workspaceSearchParams.toString()}`;
+    if (launchEntryMode) {
+        previewSearchParams.set("entry", launchEntryMode);
+    }
+    const nextPath = previewSearchParams.size > 0 ? `/mvp?${previewSearchParams.toString()}` : "/mvp";
 
-    await requireMvpWorkspaceAccess(canonicalWorkspacePath);
-    redirect(canonicalWorkspacePath);
-
-    return (
-        <MVPRouteClient
-            clarityMode
-            routeVariant="preview"
-            launchSceneId={launchSceneId}
-            launchProjectId={launchProjectId}
-            launchIntent={launchIntent}
-            launchBrief={launchBrief}
-            launchReferences={launchReferences}
-            launchProviderId={launchProviderId}
-            launchEntryMode={launchEntryMode}
-            launchSourceKind={launchSourceKind}
-            launchWorkspaceHref={null}
-            launchPreviewHref={canonicalWorkspacePath}
-            deploymentFingerprint={getMvpDeploymentFingerprint()}
-        />
-    );
+    await requireMvpWorkspaceAccess(nextPath);
+    redirect(nextPath);
 }

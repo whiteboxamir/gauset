@@ -1,7 +1,22 @@
 import { HOP_BY_HOP_HEADERS } from "./proxyShared.ts";
 
+const LOCAL_BACKEND_FALLBACK_URL = "http://127.0.0.1:8000";
+const LOCAL_DEV_SHARED_SECRET = "gauset-local-dev-worker-token";
+
 function normalizeBaseUrl(value: string) {
     return value.trim().replace(/\/$/, "");
+}
+
+function resolveLocalBackendFallbackUrl(env: NodeJS.ProcessEnv) {
+    return env.VERCEL === "1" ? "" : LOCAL_BACKEND_FALLBACK_URL;
+}
+
+function resolveLocalDevSharedSecret(env: NodeJS.ProcessEnv) {
+    if (env.VERCEL === "1") {
+        return "";
+    }
+
+    return (env.GAUSET_LOCAL_DEV_SHARED_SECRET ?? LOCAL_DEV_SHARED_SECRET).trim();
 }
 
 export function resolveInternalBackendBaseUrlForOrigin({
@@ -39,7 +54,7 @@ export function resolveBackendBaseUrlForOrigin({
     const explicit =
         env.GAUSET_BACKEND_URL ??
         env.NEXT_PUBLIC_GAUSET_API_BASE_URL ??
-        (env.NODE_ENV !== "production" ? "http://localhost:8000" : "");
+        (env.NODE_ENV !== "production" ? LOCAL_BACKEND_FALLBACK_URL : resolveLocalBackendFallbackUrl(env));
     if (explicit.trim()) {
         return normalizeBaseUrl(explicit);
     }
@@ -57,7 +72,7 @@ export function resolveBackendWorkerToken(env: NodeJS.ProcessEnv = process.env) 
         env.GAUSET_BACKEND_WORKER_TOKEN ??
         env.GAUSET_IMAGE_TO_SPLAT_BACKEND_TOKEN ??
         env.GAUSET_WORKER_TOKEN ??
-        "";
+        resolveLocalDevSharedSecret(env);
     return explicit.trim();
 }
 

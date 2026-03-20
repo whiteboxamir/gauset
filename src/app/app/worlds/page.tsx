@@ -16,7 +16,7 @@ function worldWorkspaceHref(projectId: string, primarySceneId: string | null) {
         return `/mvp?scene=${encodeURIComponent(primarySceneId)}&project=${encodeURIComponent(projectId)}`;
     }
 
-    return `/mvp?project=${encodeURIComponent(projectId)}&entry=workspace`;
+    return `/app/worlds/${encodeURIComponent(projectId)}#project-world-launch`;
 }
 
 export default async function WorldsPage() {
@@ -28,7 +28,6 @@ export default async function WorldsPage() {
               getWorkspaceReleaseReadinessForSession(session),
               listProjectReadinessCardsForSession(session),
           ]);
-
     return (
         <main className="min-h-screen bg-[#07111a] text-[#ecf3f6]">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:px-8 lg:px-10">
@@ -48,14 +47,14 @@ export default async function WorldsPage() {
                         </div>
                     </div>
                     <div className="mt-6 flex flex-wrap gap-3 text-sm">
-                        <Link
-                            href="/mvp"
+                        <a
+                            href="#project-records"
                             className="inline-flex items-center rounded-full border border-white/15 bg-white px-4 py-2 font-medium text-black transition hover:bg-[#d7e5ea]"
                         >
-                            Open saved-world front door
-                        </Link>
+                            Browse project records
+                        </a>
                         <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[#b4c6cd]">
-                            {useLocalPreview ? "Local preview truth is active" : "Authenticated project records are active"}
+                            {useLocalPreview ? "Local project records are active" : "Authenticated project records are active"}
                         </span>
                     </div>
                 </section>
@@ -75,8 +74,8 @@ export default async function WorldsPage() {
                     </article>
                 </section>
 
-                <section className="rounded-[32px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
-                    <div className="flex items-center justify-between gap-4">
+                <section id="project-records" className="rounded-[32px] border border-white/8 bg-[#09141d] p-6 sm:p-8">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <p className="text-[11px] uppercase tracking-[0.22em] text-[#7fa3b0]">Projects</p>
                             <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">Persistent world records</h2>
@@ -86,8 +85,8 @@ export default async function WorldsPage() {
                     <div className="mt-6 grid gap-4 lg:grid-cols-2">
                         {projects.map((project) => (
                             <article key={project.projectId} className="rounded-[28px] border border-white/8 bg-white/[0.03] p-6">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
+                                <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div className="min-w-0">
                                         <p className="text-[11px] uppercase tracking-[0.18em] text-[#86a8b4]">{project.studioName ?? "Project record"}</p>
                                         <h3 className="mt-2 text-xl font-semibold text-white">{project.name}</h3>
                                     </div>
@@ -123,7 +122,7 @@ export default async function WorldsPage() {
                                         href={worldWorkspaceHref(project.projectId, project.primarySceneId)}
                                         className="inline-flex items-center rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
                                     >
-                                        {project.primarySceneId ? "Reopen saved world" : "Enter workspace"}
+                                        {project.primarySceneId ? "Reopen saved world" : "Choose source path"}
                                     </Link>
                                 </div>
                             </article>

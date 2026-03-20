@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import time
 import urllib.parse
 import urllib.request
@@ -10,6 +11,8 @@ from pathlib import Path
 
 DEFAULT_BASE_URL = "http://127.0.0.1:3015"
 POLL_TIMEOUT_SECONDS = 180
+DEFAULT_ASSET_IMAGE = Path("public/images/hero_render.png")
+DEFAULT_ENVIRONMENT_IMAGE = Path("public/images/hero/interior_daylight.png")
 
 
 def request(method: str, url: str, payload: bytes | None = None, headers: dict[str, str] | None = None) -> tuple[int, bytes]:
@@ -19,21 +22,28 @@ def request(method: str, url: str, payload: bytes | None = None, headers: dict[s
 
 
 def upload_file(api_base_url: str, file_path: Path) -> dict:
-    boundary = "----GausetSmokeBoundary"
-    body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"\r\n'
-        "Content-Type: application/octet-stream\r\n\r\n"
-    ).encode() + file_path.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
-    status, raw = request(
-        "POST",
-        f"{api_base_url}/upload",
-        payload=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    web_base_url = api_base_url.removesuffix("/api/mvp")
+    command = [
+        "node",
+        "scripts/mvp_upload_client.mjs",
+        "--base-url",
+        web_base_url,
+        "--file",
+        str(file_path),
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    if status != 200:
-        raise RuntimeError(f"upload failed ({status}): {raw.decode(errors='ignore')}")
-    return json.loads(raw.decode())
+    if result.returncode != 0:
+        raise RuntimeError(f"upload helper failed ({result.returncode}): {result.stderr or result.stdout}")
+    payload = json.loads(result.stdout)
+    upload_payload = payload.get("upload")
+    if not isinstance(upload_payload, dict):
+        raise RuntimeError(f"upload helper did not return upload payload: {payload}")
+    return upload_payload
 
 
 def start_generation(api_base_url: str, kind: str, image_id: str) -> dict:
@@ -173,8 +183,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run Gauset MVP smoke tests through the Next.js proxy.")
     parser.add_argument("--mode", choices=["asset", "environment", "full"], default="full")
     parser.add_argument("--web-base-url", default=DEFAULT_BASE_URL)
-    parser.add_argument("--asset-image", default="/Users/amirboz/gauset/backend/TripoSR/examples/chair.png")
-    parser.add_argument("--environment-image", default="/Users/amirboz/gauset/backend/ml-sharp/data/teaser.jpg")
+    parser.add_argument("--asset-image", default=str(DEFAULT_ASSET_IMAGE))
+    parser.add_argument("--environment-image", default=str(DEFAULT_ENVIRONMENT_IMAGE))
     args = parser.parse_args()
 
     web_base_url = args.web_base_url.rstrip("/")

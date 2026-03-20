@@ -11,6 +11,11 @@ const requiredPaths = [
     "scripts/verify_waitlist_supabase_env.mjs",
     "api/_mvp_backend",
     "src/app/api/mvp/[...path]/route.ts",
+    "src/app/api/mvp/upload-init/route.ts",
+    "src/app/api/mvp/upload-ticket/route.ts",
+    "src/app/api/mvp/upload/route.ts",
+    "src/app/api/mvp/deployment/route.ts",
+    "src/server/mvp/upload.ts",
 ];
 
 function normalizeEntry(value) {

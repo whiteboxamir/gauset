@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getMvpDeploymentFingerprint } from "@/lib/mvp-deployment";
 import { requireMvpWorkspaceAccess } from "@/server/mvp/access";
+import { resolveDirectUploadCapability } from "@/server/mvp/upload";
 import MVPRouteClient from "./MVPRouteClient";
 import {
     normalizeLaunchEntryMode,
@@ -33,7 +34,6 @@ export default async function MVPPage({
     const resolvedLaunchBrief = launchSceneId ? null : launchBrief;
     const resolvedLaunchReferences = launchSceneId ? null : launchReferences;
     const resolvedLaunchProviderId = launchSceneId ? null : launchProviderId;
-    const directProjectFrontDoor = Boolean(launchProjectId) && !launchSceneId;
 
     if (launchSceneId) {
         const workspaceSearchParams = new URLSearchParams({
@@ -80,59 +80,27 @@ export default async function MVPPage({
         nextSearchParams.set("entry", resolvedLaunchEntryMode);
     }
     const nextPath = nextSearchParams.size > 0 ? `/mvp?${nextSearchParams.toString()}` : "/mvp";
+    const initialUploadCapability = resolveDirectUploadCapability();
 
     await requireMvpWorkspaceAccess(nextPath);
 
-    if (!launchSceneId) {
-        const previewSearchParams = new URLSearchParams();
-        if (launchProjectId) {
-            previewSearchParams.set("project", launchProjectId);
-        }
-        if (resolvedLaunchIntent) {
-            previewSearchParams.set("intent", resolvedLaunchIntent);
-        }
-        if (resolvedLaunchBrief) {
-            previewSearchParams.set("brief", resolvedLaunchBrief);
-        }
-        if (resolvedLaunchReferences) {
-            previewSearchParams.set("refs", resolvedLaunchReferences);
-        }
-        if (resolvedLaunchProviderId) {
-            previewSearchParams.set("provider", resolvedLaunchProviderId);
-        }
-        if (launchSourceKind) {
-            previewSearchParams.set("source_kind", launchSourceKind);
-        }
-        if (resolvedLaunchEntryMode) {
-            previewSearchParams.set("entry", resolvedLaunchEntryMode);
-        }
-
-        const launchPreviewParams = new URLSearchParams(previewSearchParams);
-        const launchPreviewHref =
-            launchProjectId
-                ? `/app/worlds/${launchProjectId}#project-world-launch`
-                : (() => {
-                      launchPreviewParams.delete("entry");
-                      return launchPreviewParams.size > 0 ? `/mvp?${launchPreviewParams.toString()}` : "/mvp";
-                  })();
-        const workspaceSearchParams = new URLSearchParams(launchPreviewParams);
-        if (!directProjectFrontDoor) {
-            workspaceSearchParams.set("entry", "workspace");
-        }
-        const launchWorkspaceHref =
-            directProjectFrontDoor
-                ? (() => {
-                      const projectWorkspaceParams = new URLSearchParams(previewSearchParams);
-                      projectWorkspaceParams.set("entry", "workspace");
-                      return `/mvp?${projectWorkspaceParams.toString()}`;
-                  })()
-                : `/mvp?${workspaceSearchParams.toString()}`;
+    if (launchSceneId) {
+        const launchPreviewParams = new URLSearchParams(nextSearchParams);
+        launchPreviewParams.delete("entry");
+        const launchPreviewHref = launchProjectId
+            ? `/app/worlds/${launchProjectId}#project-world-launch`
+            : launchPreviewParams.size > 0
+              ? `/mvp?${launchPreviewParams.toString()}`
+              : "/mvp";
+        const launchWorkspaceParams = new URLSearchParams(nextSearchParams);
+        launchWorkspaceParams.set("entry", "workspace");
+        const launchWorkspaceHref = `/mvp?${launchWorkspaceParams.toString()}`;
 
         return (
             <MVPRouteClient
-                clarityMode
-                routeVariant="preview"
-                launchSceneId={null}
+                clarityMode={process.env.NEXT_PUBLIC_MVP_CLARITY_DEFAULT === "1"}
+                routeVariant="workspace"
+                launchSceneId={launchSceneId}
                 launchProjectId={launchProjectId}
                 launchIntent={resolvedLaunchIntent}
                 launchBrief={resolvedLaunchBrief}
@@ -142,15 +110,27 @@ export default async function MVPPage({
                 launchSourceKind={launchSourceKind}
                 launchWorkspaceHref={launchWorkspaceHref}
                 launchPreviewHref={launchPreviewHref}
+                initialUploadCapability={initialUploadCapability}
                 deploymentFingerprint={getMvpDeploymentFingerprint()}
             />
         );
     }
 
+    const launchPreviewParams = new URLSearchParams(nextSearchParams);
+    launchPreviewParams.delete("entry");
+    const launchPreviewHref = launchProjectId
+        ? `/app/worlds/${launchProjectId}#project-world-launch`
+        : launchPreviewParams.size > 0
+          ? `/mvp?${launchPreviewParams.toString()}`
+          : "/mvp";
+    const launchWorkspaceParams = new URLSearchParams(nextSearchParams);
+    launchWorkspaceParams.set("entry", "workspace");
+    const launchWorkspaceHref = `/mvp?${launchWorkspaceParams.toString()}`;
+
     return (
         <MVPRouteClient
-            clarityMode={process.env.NEXT_PUBLIC_MVP_CLARITY_DEFAULT === "1"}
-            routeVariant="workspace"
+            clarityMode
+            routeVariant="launchpad"
             launchSceneId={launchSceneId}
             launchProjectId={launchProjectId}
             launchIntent={resolvedLaunchIntent}
@@ -159,8 +139,9 @@ export default async function MVPPage({
             launchProviderId={resolvedLaunchProviderId}
             launchEntryMode={resolvedLaunchEntryMode}
             launchSourceKind={launchSourceKind}
-            launchWorkspaceHref={null}
-            launchPreviewHref={null}
+            launchWorkspaceHref={launchWorkspaceHref}
+            launchPreviewHref={launchPreviewHref}
+            initialUploadCapability={initialUploadCapability}
             deploymentFingerprint={getMvpDeploymentFingerprint()}
         />
     );
