@@ -1,11 +1,10 @@
 'use client';
 
+import Link from 'next/link';
+
 import { WaitlistForm } from '@/components/ui/WaitlistForm';
-import { buildAppLoginUrl } from '@/lib/appAuth';
 
 export function HeroContent() {
-    const appLoginUrl = buildAppLoginUrl();
-
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center relative py-16">
             <header className="marketing-header">
@@ -15,12 +14,12 @@ export function HeroContent() {
                             <div className="pointer-events-auto text-sm font-bold tracking-wider text-white">GAUSET</div>
                         </div>
                         <div className="marketing-header__actions">
-                            <a
-                                href={appLoginUrl}
+                            <Link
+                                href="/login"
                                 className="pointer-events-auto inline-flex min-h-10 items-center rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 sm:px-5"
                             >
                                 Log in
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>

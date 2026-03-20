@@ -2,11 +2,8 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { buildAppLoginUrl } from '@/lib/appAuth';
 
 export function Navbar() {
-    const appLoginUrl = buildAppLoginUrl();
-
     return (
         <motion.header
             initial={{ opacity: 0, y: -20 }}
@@ -23,12 +20,12 @@ export function Navbar() {
                     </div>
 
                     <div className="marketing-header__actions">
-                        <a
-                            href={appLoginUrl}
+                        <Link
+                            href="/login"
                             className="pointer-events-auto inline-flex min-h-10 items-center rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-white backdrop-blur-md transition-colors duration-300 hover:bg-white hover:text-black sm:px-5"
                         >
                             Log in
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </div>

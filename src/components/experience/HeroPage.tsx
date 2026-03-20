@@ -14,7 +14,6 @@ import { DirectorOverlay } from './DirectorOverlay';
 import { PipelineSection } from './PipelineSection';
 import { FinalProofSection } from './FinalProofSection';
 import { GlitchText } from '@/components/ui/GlitchText';
-import { buildAppLoginUrl } from '@/lib/appAuth';
 
 function CameraController() {
     const { camera, size } = useThree();
@@ -32,7 +31,6 @@ export function HeroPage() {
     const [showOverlay, setShowOverlay] = useState(false);
     const handleFormSuccess = useCallback(() => { setShowOverlay(true); }, []);
     const handleOverlayClose = useCallback(() => { setShowOverlay(false); }, []);
-    const appLoginUrl = buildAppLoginUrl();
 
     const pageContent = (
         <>
@@ -245,7 +243,7 @@ export function HeroPage() {
                                 initial={{ opacity: 0, y: -12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.85, delay: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
-                                href={appLoginUrl}
+                                href="/login"
                                 className="pointer-events-auto inline-flex min-h-10 items-center rounded-full border border-white/10 bg-black/35 px-4 py-2 text-sm font-medium text-white/90 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all duration-300 hover:border-white/20 hover:bg-black/50 hover:text-white sm:px-5"
                             >
                                 Log in

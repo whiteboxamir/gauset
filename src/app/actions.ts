@@ -1,6 +1,7 @@
 'use server';
 
 import db from '@/lib/db';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 const emailSchema = z.string().email();
@@ -26,24 +27,21 @@ export async function submitWaitlist(formData: FormData) {
     }
 }
 
-import { cookies } from 'next/headers';
-
 export async function loginUser(formData: FormData) {
     const email = formData.get('email');
     try {
-        const validEmail = emailSchema.parse(email);
-        const stmt = db.prepare('INSERT OR IGNORE INTO users (email) VALUES (?)');
-        stmt.run(validEmail);
+        emailSchema.parse(email);
 
-        await new Promise(r => setTimeout(r, 800)); // Artificial latency for premium feel
+        await new Promise(r => setTimeout(r, 800));
 
-        // Save dummy auth token to simulate logged-in backend state
         const cookieStore = await cookies();
-        cookieStore.set('auth-token', validEmail, { path: '/' });
+        cookieStore.delete('auth-token');
 
-        return { success: true, message: "Welcome back." };
+        return {
+            success: false,
+            message: "You haven't been given early access yet. Request access and we'll reach out when your studio is approved.",
+        };
     } catch {
-        return { success: false, message: "Invalid email." };
+        return { success: false, message: "Please enter a valid email." };
     }
 }
-

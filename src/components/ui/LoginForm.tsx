@@ -8,7 +8,12 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export function LoginForm() {
+type LoginFormProps = {
+    defaultEmail?: string;
+    redirectPath?: string;
+};
+
+export function LoginForm({ defaultEmail = '', redirectPath = '/dashboard' }: LoginFormProps) {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
     const [message, setMessage] = useState('');
     const router = useRouter();
@@ -24,9 +29,9 @@ export function LoginForm() {
         if (result.success) {
             setStatus('success');
             setMessage(result.message);
-            // Premium redirect delay
+
             setTimeout(() => {
-                router.push('/dashboard');
+                router.push(redirectPath);
             }, 500);
         } else {
             setStatus('idle');
@@ -40,8 +45,8 @@ export function LoginForm() {
                 GAUSET
             </Link>
 
-            <h1 className="text-3xl font-medium tracking-tighter mb-2 text-white/90">Welcome back</h1>
-            <p className="text-neutral-500 mb-8 font-medium">Log in to enter the World Engine.</p>
+            <h1 className="text-3xl font-medium tracking-tighter mb-2 text-white/90">Partner access</h1>
+            <p className="text-neutral-500 mb-8 font-medium">Early access is still closed. Enter your email to check your status.</p>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <label className="text-xs text-neutral-400 font-medium uppercase tracking-widest pl-2">Email Address</label>
@@ -50,6 +55,7 @@ export function LoginForm() {
                         type="email"
                         name="email"
                         placeholder="producer@studio.com"
+                        defaultValue={defaultEmail}
                         required
                         disabled={status !== 'idle'}
                         className={cn(
@@ -72,7 +78,7 @@ export function LoginForm() {
                     <AnimatePresence mode="wait">
                         {status === 'idle' && (
                             <motion.div key="text" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                                Continue to Dashboard <ArrowRight className="w-4 h-4" />
+                                Check access <ArrowRight className="w-4 h-4" />
                             </motion.div>
                         )}
                         {status === 'loading' && (
@@ -89,9 +95,16 @@ export function LoginForm() {
                 </button>
 
                 {message && status === 'idle' && (
-                    <p className="text-red-400 text-sm font-medium text-center mt-2">{message}</p>
+                    <p className="text-sm font-medium text-center mt-2 text-amber-200/90">{message}</p>
                 )}
             </form>
+
+            <div className="mt-6 flex items-center justify-between gap-4 text-xs uppercase tracking-[0.24em] text-white/35">
+                <span>Private access</span>
+                <Link href="/" className="transition-colors hover:text-white/75">
+                    Request invite
+                </Link>
+            </div>
         </div>
     );
 }
