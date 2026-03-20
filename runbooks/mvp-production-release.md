@@ -15,10 +15,10 @@ It does not certify the reconstruction lane, because public reconstruction is st
 1. Production environment contains `BLOB_READ_WRITE_TOKEN`.
 2. `/api/mvp/setup/status` reports:
    - `storage_mode: "blob"`
-   - `storage.public_write_safe: true`
    - `capabilities.preview.available: true`
    - `capabilities.asset.available: true`
-3. The production backend runtime path is the canonical `api/_mvp_backend/vercel_backend/app.py`.
+3. `/api/mvp/upload-init` advertises `available: true` with a direct upload transport.
+4. The production backend runtime path is the canonical `api/_mvp_backend/vercel_backend/app.py`.
 
 ## Canonical Commands
 

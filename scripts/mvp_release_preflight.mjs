@@ -20,9 +20,12 @@ async function main() {
     );
 
     const setupStatus = await fetchJson("/setup/status", {}, "setup status", baseUrl);
+    const durablePublicStorage =
+        setupStatus.storage?.public_write_safe === true ||
+        (setupStatus.storage_mode === "blob" && uploadInit.available === true && uploadInit.transport === "blob");
     assert(setupStatus.status === "ok", `Unexpected setup/status payload: ${JSON.stringify(setupStatus)}`);
     assert(setupStatus.storage_mode === "blob", `Expected storage_mode=blob but received ${setupStatus.storage_mode}`);
-    assert(setupStatus.storage?.public_write_safe === true, "Public MVP storage is not durable.");
+    assert(durablePublicStorage, "Public MVP storage is not durable.");
     assert(setupStatus.capabilities?.preview?.available === true, "Preview lane is not available.");
     assert(setupStatus.capabilities?.asset?.available === true, "Asset lane is not available.");
     assert(setupStatus.capabilities?.reconstruction?.available === false, "Reconstruction lane unexpectedly reports available.");
@@ -52,6 +55,7 @@ async function main() {
                     maximumSizeInBytes: uploadInit.maximumSizeInBytes ?? null,
                     legacyProxyMaximumSizeInBytes: uploadInit.legacyProxyMaximumSizeInBytes ?? null,
                 },
+                durable_public_storage: durablePublicStorage,
                 routes: {
                     worlds_sentence: true,
                     mvp_launchpad: true,

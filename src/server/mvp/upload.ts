@@ -374,8 +374,45 @@ export async function importDirectUploadIntoBackend({
         searchParams: new URLSearchParams(),
     });
 
+    const uploadViaMultipartFallback = async () => {
+        const stagedUpload = await fetch(payload.blobUrl, {
+            cache: "no-store",
+            signal: request.signal,
+        });
+        if (!stagedUpload.ok) {
+            throw new Error(`Could not read staged upload (${stagedUpload.status})`);
+        }
+
+        const stagedBlob = await stagedUpload.blob();
+        const multipartHeaders = buildUpstreamRequestHeaders({
+            requestHeaders: request.headers,
+            workerToken: resolveBackendWorkerToken(),
+            studioId: accessContext.session?.activeStudioId ?? null,
+            userId: accessContext.session?.user.userId ?? null,
+        });
+        multipartHeaders.delete("content-type");
+        multipartHeaders.delete("content-length");
+
+        const formData = new FormData();
+        formData.append("file", stagedBlob, payload.filename);
+
+        const multipartUpstreamUrl = buildUpstreamUrl({
+            backendBaseUrl,
+            pathname: "upload",
+            searchParams: new URLSearchParams(),
+        });
+
+        return fetch(multipartUpstreamUrl, {
+            method: "POST",
+            headers: multipartHeaders,
+            body: formData,
+            cache: "no-store",
+            signal: request.signal,
+        });
+    };
+
     try {
-        const upstream = await fetch(upstreamUrl, {
+        let upstream = await fetch(upstreamUrl, {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -387,6 +424,11 @@ export async function importDirectUploadIntoBackend({
             cache: "no-store",
             signal: request.signal,
         });
+
+        if (upstream.status === 404 || upstream.status === 405) {
+            upstream = await uploadViaMultipartFallback();
+        }
+
         const responseBody = await upstream.text();
 
         if (upstream.ok) {

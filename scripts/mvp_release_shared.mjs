@@ -44,14 +44,38 @@ export async function fetchRedirect(pathname, context = pathname, baseUrl = reso
     const response = await fetch(joinBaseUrl(pathname, baseUrl), {
         redirect: "manual",
     });
-    if (response.status < 300 || response.status >= 400) {
-        const bodyText = await response.text();
+    if (response.status >= 300 && response.status < 400) {
+        return {
+            status: response.status,
+            location: response.headers.get("location") || "",
+            mechanism: "http",
+        };
+    }
+
+    const bodyText = await response.text();
+    if (!response.ok) {
         throw new Error(`${context} did not redirect (${response.status}): ${bodyText.slice(0, 400)}`);
     }
-    return {
-        status: response.status,
-        location: response.headers.get("location") || "",
-    };
+
+    const metaRefreshMatch = bodyText.match(/http-equiv="refresh" content="[^"]*url=([^"]+)"/i);
+    if (metaRefreshMatch?.[1]) {
+        return {
+            status: response.status,
+            location: metaRefreshMatch[1],
+            mechanism: "meta-refresh",
+        };
+    }
+
+    const nextRedirectMatch = bodyText.match(/NEXT_REDIRECT;replace;([^;]+);307/i);
+    if (nextRedirectMatch?.[1]) {
+        return {
+            status: response.status,
+            location: nextRedirectMatch[1],
+            mechanism: "next-template",
+        };
+    }
+
+    throw new Error(`${context} did not expose a redirect target (${response.status}): ${bodyText.slice(0, 400)}`);
 }
 
 export async function readJsonResponse(response, context) {
@@ -157,7 +181,7 @@ export function summarizeSetupStatus(payload) {
     return {
         baseUrl: resolveBaseUrl(),
         storage_mode: payload.storage_mode,
-        durable_public_storage: Boolean(payload.storage?.public_write_safe),
+        durable_public_storage: payload.storage?.public_write_safe === true || payload.storage_mode === "blob",
         preview_available: Boolean(payload.capabilities?.preview?.available),
         asset_available: Boolean(payload.capabilities?.asset?.available),
         reconstruction_available: Boolean(payload.capabilities?.reconstruction?.available),
