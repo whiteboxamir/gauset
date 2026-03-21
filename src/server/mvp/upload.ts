@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { copy, del, put } from "@vercel/blob";
+import { del } from "@vercel/blob";
 import type { NextRequest } from "next/server";
 
 import {
@@ -22,10 +22,11 @@ import { buildBackendProxyErrorResponse, buildUnavailableResponse, type ProxyAcc
 export const MVP_DIRECT_UPLOAD_PATH_PREFIX = "mvp/source-stills/";
 const BROWSER_UPLOAD_GRANT_TTL_MS = 5 * 60 * 1000;
 const BROWSER_UPLOAD_GRANT_VERSION = "gauset-browser-upload-v2";
+const LEGACY_BACKEND_SAFE_UPLOAD_MAX_BYTES = 3_500_000;
+const LEGACY_BACKEND_NORMALIZED_DIMENSIONS = [2560, 2048, 1600, 1280] as const;
+const LEGACY_BACKEND_NORMALIZED_WEBP_QUALITIES = [82, 72, 64, 56] as const;
 const LOCAL_BACKEND_FALLBACK_URL = "http://127.0.0.1:8000";
 const LOCAL_DEV_SHARED_SECRET = "gauset-local-dev-worker-token";
-const UPLOAD_META_PREFIX = "uploads/meta/";
-const UPLOAD_IMAGE_PREFIX = "uploads/images/";
 
 export interface CompleteDirectUploadPayload {
     blobUrl: string;
@@ -39,21 +40,6 @@ export interface BrowserDirectUploadGrantRequest {
     filename: string;
     contentType: string;
     size: number;
-}
-
-interface StoredUploadRecord {
-    image_id: string;
-    filename: string;
-    stored_filename: string;
-    storage_path: string;
-    filepath: string;
-    url: string;
-    created_at: string;
-    source_type: "upload";
-    provider: null;
-    model: null;
-    prompt: null;
-    generation_job_id: null;
 }
 
 function normalizeUploadString(value: unknown, max: number) {
@@ -75,57 +61,13 @@ function normalizeUploadSize(value: unknown) {
     return Number.NaN;
 }
 
-function resolveStoredUploadExtension(filename: string, contentType: string) {
-    const filenameMatch = /\.[^.]+$/.exec(filename.toLowerCase());
-    if (filenameMatch?.[0]) {
-        return filenameMatch[0];
+function replaceUploadExtension(filename: string, extension: string) {
+    const trimmed = filename.trim();
+    if (!trimmed) {
+        return `source-still${extension}`;
     }
 
-    switch (contentType) {
-        case "image/jpeg":
-            return ".jpg";
-        case "image/webp":
-            return ".webp";
-        case "image/png":
-        default:
-            return ".png";
-    }
-}
-
-function buildStoredUploadRecord({
-    imageId,
-    originalFilename,
-    storedFilename,
-}: {
-    imageId: string;
-    originalFilename: string;
-    storedFilename: string;
-}): StoredUploadRecord {
-    const storagePath = `${UPLOAD_IMAGE_PREFIX}${storedFilename}`;
-    return {
-        image_id: imageId,
-        filename: originalFilename,
-        stored_filename: storedFilename,
-        storage_path: storagePath,
-        filepath: storagePath,
-        url: `/storage/${storagePath}`,
-        created_at: new Date().toISOString(),
-        source_type: "upload",
-        provider: null,
-        model: null,
-        prompt: null,
-        generation_job_id: null,
-    };
-}
-
-function buildStoredUploadResponse(record: StoredUploadRecord) {
-    return {
-        image_id: record.image_id,
-        filename: record.stored_filename || record.filename,
-        filepath: record.storage_path || record.filepath,
-        url: record.url,
-        source_type: record.source_type,
-    };
+    return /\.[^.]+$/.test(trimmed) ? trimmed.replace(/\.[^.]+$/, extension) : `${trimmed}${extension}`;
 }
 
 function resolveBrowserUploadGrantSecret(env: NodeJS.ProcessEnv = process.env) {
@@ -414,35 +356,58 @@ export function parseCompleteDirectUploadPayload(raw: unknown) {
     };
 }
 
-async function finalizeDirectUploadIntoSharedBlobStore(payload: CompleteDirectUploadPayload) {
-    if (!isDirectUploadConfigured()) {
-        throw new Error("Direct durable uploads are unavailable on this deployment.");
+async function prepareUploadForLegacyBackend({
+    payload,
+    sourceBuffer,
+}: {
+    payload: CompleteDirectUploadPayload;
+    sourceBuffer: Buffer;
+}) {
+    if (sourceBuffer.byteLength <= LEGACY_BACKEND_SAFE_UPLOAD_MAX_BYTES) {
+        return {
+            bytes: sourceBuffer,
+            contentType: payload.contentType,
+            filename: payload.filename,
+        };
     }
 
-    const imageId = randomUUID().replace(/-/g, "");
-    const extension = resolveStoredUploadExtension(payload.filename, payload.contentType);
-    const storedFilename = `${imageId}${extension}`;
-    const record = buildStoredUploadRecord({
-        imageId,
-        originalFilename: payload.filename,
-        storedFilename,
-    });
+    const sharpModule = await import("sharp");
+    const sharp = sharpModule.default;
+    let smallestCandidate: Buffer | null = null;
 
-    await copy(payload.blobUrl, record.storage_path, {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: false,
-        contentType: payload.contentType,
-    });
+    for (const maxDimension of LEGACY_BACKEND_NORMALIZED_DIMENSIONS) {
+        for (const quality of LEGACY_BACKEND_NORMALIZED_WEBP_QUALITIES) {
+            const candidate = await sharp(sourceBuffer, { sequentialRead: true })
+                .rotate()
+                .resize({
+                    width: maxDimension,
+                    height: maxDimension,
+                    fit: "inside",
+                    withoutEnlargement: true,
+                })
+                .webp({
+                    quality,
+                    effort: 4,
+                })
+                .toBuffer();
 
-    await put(`${UPLOAD_META_PREFIX}${imageId}.json`, JSON.stringify(record, null, 2), {
-        access: "public",
-        addRandomSuffix: false,
-        allowOverwrite: false,
-        contentType: "application/json",
-    });
+            if (!smallestCandidate || candidate.byteLength < smallestCandidate.byteLength) {
+                smallestCandidate = candidate;
+            }
 
-    return buildStoredUploadResponse(record);
+            if (candidate.byteLength <= LEGACY_BACKEND_SAFE_UPLOAD_MAX_BYTES) {
+                return {
+                    bytes: candidate,
+                    contentType: "image/webp",
+                    filename: replaceUploadExtension(payload.filename, ".webp"),
+                };
+            }
+        }
+    }
+
+    throw new Error(
+        `Could not normalize ${payload.filename} below ${Math.round(LEGACY_BACKEND_SAFE_UPLOAD_MAX_BYTES / (1024 * 1024))} MB for backend import (smallest candidate ${Math.round(((smallestCandidate?.byteLength ?? sourceBuffer.byteLength) / (1024 * 1024)) * 10) / 10} MB).`,
+    );
 }
 
 export async function importDirectUploadIntoBackend({
@@ -475,8 +440,62 @@ export async function importDirectUploadIntoBackend({
         searchParams: new URLSearchParams(),
     });
 
+    const uploadViaMultipartFallback = async () => {
+        const stagedUpload = await fetch(payload.blobUrl, {
+            cache: "no-store",
+            signal: request.signal,
+        });
+        if (!stagedUpload.ok) {
+            throw new Error(`Could not read staged upload (${stagedUpload.status})`);
+        }
+
+        const sourceBuffer = Buffer.from(await stagedUpload.arrayBuffer());
+        const preparedUpload = await prepareUploadForLegacyBackend({
+            payload,
+            sourceBuffer,
+        });
+        const multipartHeaders = buildUpstreamRequestHeaders({
+            requestHeaders: request.headers,
+            workerToken: resolveBackendWorkerToken(),
+            studioId: accessContext.session?.activeStudioId ?? null,
+            userId: accessContext.session?.user.userId ?? null,
+        });
+        multipartHeaders.delete("content-type");
+        multipartHeaders.delete("content-length");
+
+        const formData = new FormData();
+        const uploadBytes = new Uint8Array(
+            preparedUpload.bytes.buffer,
+            preparedUpload.bytes.byteOffset,
+            preparedUpload.bytes.byteLength,
+        );
+        const uploadArrayBuffer = new ArrayBuffer(uploadBytes.byteLength);
+        new Uint8Array(uploadArrayBuffer).set(uploadBytes);
+        formData.append(
+            "file",
+            new Blob([uploadArrayBuffer], {
+                type: preparedUpload.contentType,
+            }),
+            preparedUpload.filename,
+        );
+
+        const multipartUpstreamUrl = buildUpstreamUrl({
+            backendBaseUrl,
+            pathname: "upload",
+            searchParams: new URLSearchParams(),
+        });
+
+        return fetch(multipartUpstreamUrl, {
+            method: "POST",
+            headers: multipartHeaders,
+            body: formData,
+            cache: "no-store",
+            signal: request.signal,
+        });
+    };
+
     try {
-        const upstream = await fetch(upstreamUrl, {
+        let upstream = await fetch(upstreamUrl, {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -490,11 +509,7 @@ export async function importDirectUploadIntoBackend({
         });
 
         if (upstream.status === 404 || upstream.status === 405) {
-            const finalizedUpload = await finalizeDirectUploadIntoSharedBlobStore(payload);
-            void del(payload.blobUrl).catch((error) => {
-                console.warn("[mvp-upload] failed to delete staging blob after shared-store finalize", error);
-            });
-            return Response.json(finalizedUpload);
+            upstream = await uploadViaMultipartFallback();
         }
 
         const responseBody = await upstream.text();
