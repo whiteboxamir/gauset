@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { del } from "@vercel/blob";
+import { copy, del, put } from "@vercel/blob";
 import type { NextRequest } from "next/server";
 
 import {
@@ -24,6 +24,8 @@ const BROWSER_UPLOAD_GRANT_TTL_MS = 5 * 60 * 1000;
 const BROWSER_UPLOAD_GRANT_VERSION = "gauset-browser-upload-v2";
 const LOCAL_BACKEND_FALLBACK_URL = "http://127.0.0.1:8000";
 const LOCAL_DEV_SHARED_SECRET = "gauset-local-dev-worker-token";
+const UPLOAD_META_PREFIX = "uploads/meta/";
+const UPLOAD_IMAGE_PREFIX = "uploads/images/";
 
 export interface CompleteDirectUploadPayload {
     blobUrl: string;
@@ -37,6 +39,21 @@ export interface BrowserDirectUploadGrantRequest {
     filename: string;
     contentType: string;
     size: number;
+}
+
+interface StoredUploadRecord {
+    image_id: string;
+    filename: string;
+    stored_filename: string;
+    storage_path: string;
+    filepath: string;
+    url: string;
+    created_at: string;
+    source_type: "upload";
+    provider: null;
+    model: null;
+    prompt: null;
+    generation_job_id: null;
 }
 
 function normalizeUploadString(value: unknown, max: number) {
@@ -56,6 +73,59 @@ function normalizeUploadSize(value: unknown) {
         return Number.isFinite(parsed) ? parsed : Number.NaN;
     }
     return Number.NaN;
+}
+
+function resolveStoredUploadExtension(filename: string, contentType: string) {
+    const filenameMatch = /\.[^.]+$/.exec(filename.toLowerCase());
+    if (filenameMatch?.[0]) {
+        return filenameMatch[0];
+    }
+
+    switch (contentType) {
+        case "image/jpeg":
+            return ".jpg";
+        case "image/webp":
+            return ".webp";
+        case "image/png":
+        default:
+            return ".png";
+    }
+}
+
+function buildStoredUploadRecord({
+    imageId,
+    originalFilename,
+    storedFilename,
+}: {
+    imageId: string;
+    originalFilename: string;
+    storedFilename: string;
+}): StoredUploadRecord {
+    const storagePath = `${UPLOAD_IMAGE_PREFIX}${storedFilename}`;
+    return {
+        image_id: imageId,
+        filename: originalFilename,
+        stored_filename: storedFilename,
+        storage_path: storagePath,
+        filepath: storagePath,
+        url: `/storage/${storagePath}`,
+        created_at: new Date().toISOString(),
+        source_type: "upload",
+        provider: null,
+        model: null,
+        prompt: null,
+        generation_job_id: null,
+    };
+}
+
+function buildStoredUploadResponse(record: StoredUploadRecord) {
+    return {
+        image_id: record.image_id,
+        filename: record.stored_filename || record.filename,
+        filepath: record.storage_path || record.filepath,
+        url: record.url,
+        source_type: record.source_type,
+    };
 }
 
 function resolveBrowserUploadGrantSecret(env: NodeJS.ProcessEnv = process.env) {
@@ -344,6 +414,37 @@ export function parseCompleteDirectUploadPayload(raw: unknown) {
     };
 }
 
+async function finalizeDirectUploadIntoSharedBlobStore(payload: CompleteDirectUploadPayload) {
+    if (!isDirectUploadConfigured()) {
+        throw new Error("Direct durable uploads are unavailable on this deployment.");
+    }
+
+    const imageId = randomUUID().replace(/-/g, "");
+    const extension = resolveStoredUploadExtension(payload.filename, payload.contentType);
+    const storedFilename = `${imageId}${extension}`;
+    const record = buildStoredUploadRecord({
+        imageId,
+        originalFilename: payload.filename,
+        storedFilename,
+    });
+
+    await copy(payload.blobUrl, record.storage_path, {
+        access: "public",
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        contentType: payload.contentType,
+    });
+
+    await put(`${UPLOAD_META_PREFIX}${imageId}.json`, JSON.stringify(record, null, 2), {
+        access: "public",
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        contentType: "application/json",
+    });
+
+    return buildStoredUploadResponse(record);
+}
+
 export async function importDirectUploadIntoBackend({
     request,
     accessContext,
@@ -374,45 +475,8 @@ export async function importDirectUploadIntoBackend({
         searchParams: new URLSearchParams(),
     });
 
-    const uploadViaMultipartFallback = async () => {
-        const stagedUpload = await fetch(payload.blobUrl, {
-            cache: "no-store",
-            signal: request.signal,
-        });
-        if (!stagedUpload.ok) {
-            throw new Error(`Could not read staged upload (${stagedUpload.status})`);
-        }
-
-        const stagedBlob = await stagedUpload.blob();
-        const multipartHeaders = buildUpstreamRequestHeaders({
-            requestHeaders: request.headers,
-            workerToken: resolveBackendWorkerToken(),
-            studioId: accessContext.session?.activeStudioId ?? null,
-            userId: accessContext.session?.user.userId ?? null,
-        });
-        multipartHeaders.delete("content-type");
-        multipartHeaders.delete("content-length");
-
-        const formData = new FormData();
-        formData.append("file", stagedBlob, payload.filename);
-
-        const multipartUpstreamUrl = buildUpstreamUrl({
-            backendBaseUrl,
-            pathname: "upload",
-            searchParams: new URLSearchParams(),
-        });
-
-        return fetch(multipartUpstreamUrl, {
-            method: "POST",
-            headers: multipartHeaders,
-            body: formData,
-            cache: "no-store",
-            signal: request.signal,
-        });
-    };
-
     try {
-        let upstream = await fetch(upstreamUrl, {
+        const upstream = await fetch(upstreamUrl, {
             method: "POST",
             headers,
             body: JSON.stringify({
@@ -426,7 +490,11 @@ export async function importDirectUploadIntoBackend({
         });
 
         if (upstream.status === 404 || upstream.status === 405) {
-            upstream = await uploadViaMultipartFallback();
+            const finalizedUpload = await finalizeDirectUploadIntoSharedBlobStore(payload);
+            void del(payload.blobUrl).catch((error) => {
+                console.warn("[mvp-upload] failed to delete staging blob after shared-store finalize", error);
+            });
+            return Response.json(finalizedUpload);
         }
 
         const responseBody = await upstream.text();
