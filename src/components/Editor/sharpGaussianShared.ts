@@ -17,8 +17,8 @@ export const MAX_GPU_SORT_WORKING_SET_BYTES = 128 * 1024 * 1024;
 export const DIRECT_REST_MIN_AXIS_PX = 0.1;
 export const DIRECT_MOTION_MIN_AXIS_PX = 0.135;
 export const DIRECT_STRESS_MIN_AXIS_PX = 0.165;
-export const DIRECT_MOTION_SORT_MAX_REUSE_FRAMES = 3;
-export const DIRECT_ROTATION_SORT_MAX_REUSE_FRAMES = 2;
+export const DIRECT_MOTION_SORT_MAX_REUSE_FRAMES = 2;
+export const DIRECT_ROTATION_SORT_MAX_REUSE_FRAMES = 1;
 export const RECONSTRUCTION_POINT_BUDGET_HIGH_CAPABILITY = 1_500_000;
 export const RECONSTRUCTION_POINT_BUDGET_DESKTOP = 1_250_000;
 export const RECONSTRUCTION_POINT_BUDGET_LOW_MEMORY = 900_000;
@@ -30,8 +30,11 @@ export const STANDARD_PREVIEW_POINT_BUDGET_HIGH_CAPABILITY = 1_500_000;
 export const STANDARD_PREVIEW_POINT_BUDGET_DESKTOP = 1_250_000;
 export const STANDARD_PREVIEW_POINT_BUDGET_LOW_MEMORY = 750_000;
 export const STAGED_UPGRADE_MAX_INITIAL_POINTS = 650_000;
+export const STAGED_REFINEMENT_BYTE_BUDGET_HIGH = 96 * 1024 * 1024;
+export const STAGED_REFINEMENT_BYTE_BUDGET_MEDIUM = 72 * 1024 * 1024;
+export const STAGED_REFINEMENT_BYTE_BUDGET_LOW = 48 * 1024 * 1024;
 export const DIRECT_SORT_POSITION_EPSILON_SQ = 0.0001;
-export const DIRECT_SORT_ROTATION_EPSILON = 0.00004;
+export const DIRECT_SORT_ROTATION_EPSILON = 0.00003;
 export const DIRECT_ORDER_CULL_SENTINEL = 65504;
 
 export type PreviewBounds = {
@@ -94,6 +97,28 @@ export type SharpGaussianPayload = {
     debugSamples: SharpGaussianDebugSample[];
 };
 
+export type SharpGaussianPayloadLayerRole = "bootstrap" | "page" | "full" | "standard";
+
+export type SharpGaussianResidentPayload = {
+    id: string;
+    label: string | null;
+    role: SharpGaussianPayloadLayerRole;
+    pageRole: string | null;
+    priority: number;
+    pageIndex: number | null;
+    progressive: boolean;
+    pointCount: number;
+    bytes: number;
+    focusCenter: [number, number, number] | null;
+    focusRadius: number | null;
+    sticky: boolean;
+    preload: boolean;
+    evictionPriority: number;
+    residentAt: number;
+    lastTouchedAt: number;
+    payload: SharpGaussianPayload;
+};
+
 export type SerializedSharpGaussianChunk = {
     start: number;
     count: number;
@@ -137,6 +162,15 @@ export type SharpGaussianLoadState = {
     upgradeVariantLabel?: string | null;
     stagedDelivery?: boolean;
     upgradePending?: boolean;
+    residentLayerCount?: number;
+    residentPointCount?: number;
+    residentByteCount?: number;
+    inflightPageCount?: number;
+    refinePagesLoaded?: number;
+    refinePagesPending?: number;
+    deliveryProgressFraction?: number;
+    evictions?: number;
+    deliveryPauseReason?: string | null;
 };
 
 export const DEFAULT_SHARP_GAUSSIAN_LOAD_STATE: SharpGaussianLoadState = {
@@ -146,4 +180,13 @@ export const DEFAULT_SHARP_GAUSSIAN_LOAD_STATE: SharpGaussianLoadState = {
     upgradeVariantLabel: null,
     stagedDelivery: false,
     upgradePending: false,
+    residentLayerCount: 0,
+    residentPointCount: 0,
+    residentByteCount: 0,
+    inflightPageCount: 0,
+    refinePagesLoaded: 0,
+    refinePagesPending: 0,
+    deliveryProgressFraction: 0,
+    evictions: 0,
+    deliveryPauseReason: null,
 };

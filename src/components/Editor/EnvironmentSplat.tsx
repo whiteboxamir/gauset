@@ -11,9 +11,11 @@ type EnvironmentSplatProps = {
     plyUrl?: string | null;
     viewerUrl?: string | null;
     metadata?: GeneratedEnvironmentMetadata | null;
+    focusTarget?: [number, number, number] | null;
     onPreviewBounds?: (bounds: PreviewBounds) => void;
     onFatalError?: (message: string, reason: ViewerFallbackReason) => void;
     onSharpLiveStateChange?: (state: { isLiveReady: boolean; loadState: SharpGaussianLoadState }) => void;
+    onSharpTransitionActiveChange?: (active: boolean) => void;
 };
 
 export default function EnvironmentSplat(props: EnvironmentSplatProps) {
@@ -28,9 +30,11 @@ export default function EnvironmentSplat(props: EnvironmentSplatProps) {
             <SharpGaussianEnvironmentSplat
                 source={resolved.source}
                 metadata={props.metadata}
+                focusTarget={props.focusTarget}
                 onPreviewBounds={props.onPreviewBounds}
                 onFatalError={props.onFatalError}
                 onLiveStateChange={props.onSharpLiveStateChange}
+                onTransitionActiveChange={props.onSharpTransitionActiveChange}
             />
         );
     }
